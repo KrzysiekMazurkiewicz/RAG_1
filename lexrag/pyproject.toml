@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lexrag"
+version = "0.2.0"
+description = "Wyszukiwanie z cytowaniem po ustawach i procedurach wewnętrznych – on-prem, CPU"
+requires-python = ">=3.9"
+dependencies = ["numpy>=1.24", "simplemma>=1.0", "pymupdf>=1.23"]
+
+[project.optional-dependencies]
+ml = ["sentence-transformers>=3.0", "torch>=2.1"]
+dev = ["pytest>=7"]
+
+[project.scripts]
+lexrag = "lexrag.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["lexrag*"]

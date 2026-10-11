@@ -1,0 +1,4 @@
+# embeddingi + reranker (CPU); ~2 GB przez torch. Modele pobierz na maszynie z internetem
+# i skopiuj katalog (LEXRAG_EMB_MODEL=/opt/modele/mmlw-retrieval-roberta-large).
+sentence-transformers>=3.0
+torch>=2.1

@@ -1,0 +1,18 @@
+# Złoty zbiór do ustawy testowej. Pytania celowo potoczne (tak pyta pracownik), oczekiwane = id jednostek,
+# które MUSZĄ trafić do kontekstu. Twój prawdziwy zbiór: 200–300 takich linii zrobionych z merytoryką.
+{"pytanie": "od jakiego wieku przysługuje świadczenie osobom urodzonym po 1948 roku", "oczekiwane": ["test:art24:ust1"]}
+{"pytanie": "jakie warunki musi spełnić osoba urodzona przed 1949 rokiem żeby dostać świadczenie", "oczekiwane": ["test:art27:ust1"]}
+{"pytanie": "czy trzeba rozwiązać umowę o pracę żeby dostać świadczenie", "oczekiwane": ["test:art103a"]}
+{"pytanie": "co to jest nienależnie pobrane świadczenie", "oczekiwane": ["test:art138:ust2"]}
+{"pytanie": "za jaki okres wstecz można żądać zwrotu nienależnie pobranych świadczeń", "oczekiwane": ["test:art138:ust3"]}
+{"pytanie": "czy organ może odstąpić od żądania zwrotu albo rozłożyć na raty", "oczekiwane": ["test:art138:ust4"]}
+{"pytanie": "kiedy przedawnia się nienależnie pobrane świadczenie", "oczekiwane": ["test:art138:ust5", "test:art138:ust6"]}
+{"pytanie": "ile lat stażu trzeba mieć żeby dostać najniższe świadczenie", "oczekiwane": ["test:art87:ust1"]}
+{"pytanie": "co oznacza staż ubezpieczeniowy", "oczekiwane": ["test:art4:pkt2"]}
+{"pytanie": "w jakiej kolejności potrąca się należności ze świadczenia", "oczekiwane": ["test:art139:ust1"]}
+{"pytanie": "ile maksymalnie można potrącić ze świadczenia na nienależnie pobrane", "oczekiwane": ["test:art140:ust1"]}
+{"pytanie": "wcześniejsze świadczenie za pracę w szczególnych warunkach dla urodzonych po 1948", "oczekiwane": ["test:art184:ust1"]}
+{"pytanie": "jak prowadzi się egzekucję jeśli nie da się potrącić z bieżącego świadczenia", "oczekiwane": ["test:art141"]}
+{"pytanie": "przy jakim przychodzie świadczenie jest zawieszane a przy jakim zmniejszane", "oczekiwane": ["test:art104:ust1", "test:art104:ust2"]}
+{"pytanie": "które okresy są nieskładkowe", "oczekiwane": ["test:art7"]}
+{"pytanie": "kobieta 55 lat 30 lat stażu urodzona przed 1949 czy może przejść wcześniej", "oczekiwane": ["test:art29:ust1"]}

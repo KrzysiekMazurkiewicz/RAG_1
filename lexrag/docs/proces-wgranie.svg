@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="proces" viewBox="0 0 1730 260" width="1730" height="260" role="img" aria-label="Wgranie aktu (indeksowanie, bez LLM)">
+<style>
+.pool{fill:none;stroke:#7a8699;stroke-width:1.4}
+.poolhead{fill:#e3e8ef;stroke:#7a8699;stroke-width:1.4}
+.lane{fill:none;stroke:#aab3c0;stroke-width:1;stroke-dasharray:4 3}
+.lanehead{fill:#eef1f5;stroke:#aab3c0;stroke-width:1}
+.task{fill:#eaf2f1;stroke:#0f6e6e;stroke-width:1.6}
+.llm{fill:#fbefd9;stroke:#b8741a;stroke-width:1.6}
+.badge{fill:#b8741a}
+.badgetxt{fill:#ffffff;font:700 9px 'Source Sans 3',system-ui,sans-serif;letter-spacing:.06em}
+.gw{fill:#ffffff;stroke:#3b4654;stroke-width:1.6}
+.start{fill:#ffffff;stroke:#3b4654;stroke-width:1.6}
+.end{fill:#ffffff;stroke:#3b4654;stroke-width:3.2}
+.endodm{fill:#fff1f0;stroke:#a33a2f;stroke-width:3.2}
+.endask{fill:#fbefd9;stroke:#b8741a;stroke-width:3.2}
+.edge{fill:none;stroke:#3b4654;stroke-width:1.4}
+.arrow{fill:#3b4654}
+.txt{fill:#1b2430;font:11.5px 'Source Sans 3',system-ui,sans-serif}
+.lbl{fill:#1b2430;font:11px 'Source Sans 3',system-ui,sans-serif}
+.flow{fill:#3b4654;font:italic 10.5px 'Source Sans 3',system-ui,sans-serif}
+.head{fill:#1b2430;font:600 12.5px 'Source Sans 3',system-ui,sans-serif;letter-spacing:.02em}
+.gwmark{stroke:#3b4654;stroke-width:2}
+</style>
+<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<rect class="pool" x="20" y="10" width="1690" height="240" rx="3"/>
+<rect class="poolhead" x="20" y="10" width="30" height="240" rx="3"/>
+<text class="head" transform="translate(39,130.0) rotate(-90)" text-anchor="middle" dominant-baseline="middle">Wgranie aktu (indeksowanie, bez LLM)</text>
+<polyline class="edge" points="168.0,160.0 275.0,160.0" marker-end="url(#arr)"/>
+<polyline class="edge" points="425.0,160.0 475.0,160.0" marker-end="url(#arr)"/>
+<polyline class="edge" points="625.0,160.0 675.0,160.0" marker-end="url(#arr)"/>
+<polyline class="edge" points="825.0,160.0 875.0,160.0" marker-end="url(#arr)"/>
+<polyline class="edge" points="1025.0,160.0 1075.0,160.0" marker-end="url(#arr)"/>
+<polyline class="edge" points="1225.0,160.0 1275.0,160.0" marker-end="url(#arr)"/>
+<polyline class="edge" points="1425.0,160.0 1532.0,160.0" marker-end="url(#arr)"/>
+<circle class="start" cx="150" cy="160" r="18.0"/>
+<text class="lbl" text-anchor="middle" dominant-baseline="middle"><tspan x="150.0" y="188.2">Plik aktu: PDF z ISAP,</tspan><tspan x="150.0" y="200.8">DOCX, HTML lub TXT</tspan></text>
+<rect class="task" x="275.0" y="118.0" width="150" height="84" rx="9"/>
+<text class="txt" text-anchor="middle" dominant-baseline="middle"><tspan x="350.0" y="139.8">Ekstrakcja tekstu po</tspan><tspan x="350.0" y="153.2">rozmiarze czcionki</tspan><tspan x="350.0" y="166.8">(przypisy i indeksy</tspan><tspan x="350.0" y="180.2">górne odpadają)</tspan></text>
+<rect class="task" x="475.0" y="118.0" width="150" height="84" rx="9"/>
+<text class="txt" text-anchor="middle" dominant-baseline="middle"><tspan x="550.0" y="133.0">Parser struktury:</tspan><tspan x="550.0" y="146.5">dział, rozdział, art.,</tspan><tspan x="550.0" y="160.0">ust., pkt; załączniki;</tspan><tspan x="550.0" y="173.5">uchylone; podwójne</tspan><tspan x="550.0" y="187.0">brzmienia</tspan></text>
+<rect class="task" x="675.0" y="118.0" width="150" height="84" rx="9"/>
+<text class="txt" text-anchor="middle" dominant-baseline="middle"><tspan x="750.0" y="139.8">Graf odesłań</tspan><tspan x="750.0" y="153.2">(wewnętrzne + do innych</tspan><tspan x="750.0" y="166.8">ustaw) i słownik</tspan><tspan x="750.0" y="180.2">definicji</tspan></text>
+<rect class="task" x="875.0" y="118.0" width="150" height="84" rx="9"/>
+<text class="txt" text-anchor="middle" dominant-baseline="middle"><tspan x="950.0" y="153.2">Lematyzacja (simplemma)</tspan><tspan x="950.0" y="166.8">i indeks BM25</tspan></text>
+<rect class="task" x="1075.0" y="118.0" width="150" height="84" rx="9"/>
+<text class="txt" text-anchor="middle" dominant-baseline="middle"><tspan x="1150.0" y="139.8">Embeddingi jednostek</tspan><tspan x="1150.0" y="153.2">(mmlw-retrieval-</tspan><tspan x="1150.0" y="166.8">roberta-large,</tspan><tspan x="1150.0" y="180.2">lokalnie)</tspan></text>
+<rect class="task" x="1275.0" y="118.0" width="150" height="84" rx="9"/>
+<text class="txt" text-anchor="middle" dominant-baseline="middle"><tspan x="1350.0" y="139.8">Zapis indeksu i</tspan><tspan x="1350.0" y="153.2">statystyk: luki w</tspan><tspan x="1350.0" y="166.8">numeracji, przypisy,</tspan><tspan x="1350.0" y="180.2">duplikaty</tspan></text>
+<circle class="end" cx="1550" cy="160" r="18.0"/>
+<text class="lbl" text-anchor="middle" dominant-baseline="middle"><tspan x="1550.0" y="188.8">Indeks gotowy</tspan><tspan x="1550.0" y="201.2">(jednostka = ustęp, z</tspan><tspan x="1550.0" y="213.8">id np.</tspan><tspan x="1550.0" y="226.2">fus:art138:ust3)</tspan></text>
+</svg>

@@ -1,0 +1,16 @@
+# archiwa robocze i wirtualne środowiska
+*.zip
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.hypothesis/
+.DS_Store
+# dane lokalne LexRAG (indeksy, pliki źródłowe, wolumeny Dockera, modele, sekrety)
+lexrag/data/index*/
+lexrag/data/raw/
+lexrag/dane/
+lexrag/modele/
+lexrag/.env
+lexrag/ui/node_modules/
+lexrag/ui/dist/

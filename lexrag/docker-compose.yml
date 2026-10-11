@@ -1,0 +1,44 @@
+# LexRAG na NAS z kartą NVIDIA (QNAP Container Station, Docker z runtime nvidia).
+#   docker compose up -d --build
+#   docker exec lexrag-ollama ollama pull gemma4:12b      # model z .env: LEXRAG_LLM_MODEL (12B potrzebuje ~10 GB VRAM; na karcie 6 GB: gemma4:e4b albo model w Colabie)
+#   http://<adres-nas>:8090
+# Dane trwałe w ./dane (indeksy, wgrane pliki, modele Ollamy, cache modeli embeddingów).
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: lexrag-ollama
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - OLLAMA_KEEP_ALIVE=30m
+      - OLLAMA_NUM_PARALLEL=1
+      - OLLAMA_MAX_LOADED_MODELS=1
+    volumes:
+      - ./dane/ollama:/root/.ollama
+    ports:
+      - "11434:11434"
+    mem_limit: 12g
+    restart: unless-stopped
+
+  lexrag:
+    build: .
+    image: lexrag:latest
+    container_name: lexrag-app
+    depends_on:
+      - ollama
+    runtime: nvidia                      # reranker i embeddingi na karcie; bez karty: usuń tę linię i ustaw LEXRAG_DEVICE=cpu
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - LEXRAG_LLM_BASE_URL=${LEXRAG_LLM_BASE_URL:-http://ollama:11434/v1}   # model w Colabie: https://<tunel>.trycloudflare.com/v1 + LEXRAG_LLM_API=ollama
+      - LEXRAG_LLM_MODEL=${LEXRAG_LLM_MODEL:-gemma4:12b}
+      - LEXRAG_LLM_API=${LEXRAG_LLM_API:-auto}
+      - LEXRAG_SKIP_ANALYSIS=${LEXRAG_SKIP_ANALYSIS:-1}
+      - LEXRAG_DEVICE=${LEXRAG_DEVICE:-auto}
+      - LEXRAG_LLM_NUM_CTX=${LEXRAG_LLM_NUM_CTX:-12288}
+    volumes:
+      - ./dane/lexrag:/app/data
+      - ./dane/modele:/opt/modele
+    ports:
+      - "8090:8090"
+    mem_limit: 8g
+    restart: unless-stopped

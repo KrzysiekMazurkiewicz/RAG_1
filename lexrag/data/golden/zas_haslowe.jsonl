@@ -1,0 +1,14 @@
+# Pytania hasłowe (jak ludzie piszą w wyszukiwarkę) do ustawy zasiłkowej: oczekiwana odpowiedź przeglądowa.
+# W `oczekiwane` wpis „a|b” to alternatywa – wystarczy zacytować jeden z nich.
+{"pytanie": "zasiłek chorobowy", "oczekiwane": ["zas:art6:ust1|zas:art4:ust1|zas:art8:ust1"], "musi_zawierac": ["niezdoln|30 dni|182"]}
+{"pytanie": "okres zasiłkowy", "oczekiwane": ["zas:art8:ust1"], "musi_zawierac": ["182", "270"]}
+{"pytanie": "wysokość zasiłku chorobowego", "oczekiwane": ["zas:art11:ust1"], "musi_zawierac": ["80 %|80%"]}
+{"pytanie": "świadczenie rehabilitacyjne", "oczekiwane": ["zas:art18:ust1|zas:art18:ust2"], "musi_zawierac": ["rokuj|12 miesięcy"]}
+{"pytanie": "zasiłek macierzyński", "oczekiwane": ["zas:art29:ust1"], "musi_zawierac": ["urodzi"]}
+{"pytanie": "zasiłek opiekuńczy", "oczekiwane": ["zas:art32:ust1"], "musi_zawierac": ["opiek"]}
+{"pytanie": "zasiłek wyrównawczy", "oczekiwane": ["zas:art23:ust1"], "musi_zawierac": ["zmniejszon"]}
+{"pytanie": "podstawa wymiaru zasiłku", "oczekiwane": ["zas:art36:ust1"], "musi_zawierac": ["12 miesięcy"]}
+{"pytanie": "kontrola zwolnień lekarskich", "oczekiwane": ["zas:art68:ust1"], "musi_zawierac": ["Zakład Ubezpieczeń Społecznych|ZUS"]}
+{"pytanie": "przedawnienie zasiłku", "oczekiwane": ["zas:art67:ust1"], "musi_zawierac": ["6 miesięcy"]}
+{"pytanie": "zasiłek po ustaniu zatrudnienia", "oczekiwane": ["zas:art7|zas:art13:ust1"], "musi_zawierac": ["30 dni|14 dni|emerytur"]}
+{"pytanie": "alkohol a zasiłek chorobowy", "oczekiwane": ["zas:art16"], "musi_zawierac": ["5 dni"]}

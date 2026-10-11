@@ -1,0 +1,2 @@
+pytest>=7
+docling>=2.0          # DOCX/PDF procedur -> Markdown z tabelami (opcjonalnie; alternatywa: pandoc)

@@ -1,0 +1,43 @@
+# Złoty zbiór do ustawy o emeryturach i rentach z FUS (tekst jednolity Dz.U. 2024 poz. 1631, kod "fus").
+# Pytania potoczne (tak pyta pracownik), "oczekiwane" = id jednostek, które MUSZĄ trafić do kontekstu,
+# "musi_zawierac" = frazy (alternatywy po "|"), które muszą paść w odpowiedzi – sprawdzone na treści ustępów.
+{"pytanie": "od jakiego wieku przysługuje emerytura osobom urodzonym po 1948 roku", "oczekiwane": ["fus:art24:ust1"], "musi_zawierac": ["60 lat", "65 lat"]}
+{"pytanie": "jakie warunki musi spełnić osoba urodzona przed 1949 rokiem żeby dostać emeryturę", "oczekiwane": ["fus:art27"], "musi_zawierac": ["20 lat", "25 lat"]}
+{"pytanie": "kobieta urodzona przed 1949 z 30-letnim stażem czy może przejść na emeryturę przed 60 rokiem życia", "oczekiwane": ["fus:art29:ust1"], "musi_zawierac": ["55 lat", "30-letni|30 lat|30-letniego|trzydziest"]}
+{"pytanie": "ile procent kwoty bazowej wynosi część socjalna emerytury i ile za każdy rok składkowy", "oczekiwane": ["fus:art53:ust1"], "musi_zawierac": ["24 %|24%", "1,3 %|1,3%"]}
+{"pytanie": "jak oblicza się emeryturę dla urodzonych po 1948 roku przez co dzieli się podstawę", "oczekiwane": ["fus:art26:ust1"], "musi_zawierac": ["średnie dalsze trwanie życia|średniego dalszego trwania życia"]}
+{"pytanie": "co wchodzi do podstawy obliczenia nowej emerytury", "oczekiwane": ["fus:art25:ust1"], "musi_zawierac": ["składek", "kapitał|kapitału początkowego"]}
+{"pytanie": "czy ZUS przyznaje emeryturę z urzędu zamiast renty z tytułu niezdolności do pracy", "oczekiwane": ["fus:art24a:ust1"], "musi_zawierac": ["z urzędu"]}
+{"pytanie": "jakie warunki trzeba spełnić żeby dostać rentę z tytułu niezdolności do pracy", "oczekiwane": ["fus:art57:ust1"], "musi_zawierac": ["niezdoln", "składkow"]}
+{"pytanie": "ile lat okresów składkowych i nieskładkowych trzeba mieć do renty jeśli niezdolność powstała po 30 roku życia", "oczekiwane": ["fus:art58:ust1"], "musi_zawierac": ["5 lat|pięć lat|pięciu lat"]}
+{"pytanie": "w jakim okresie musi przypadać 5 lat stażu wymaganych do renty", "oczekiwane": ["fus:art58:ust2"], "musi_zawierac": ["dziesięciolecia|dziesięcioletni|10 lat|dziesięciu lat"]}
+{"pytanie": "kiedy przysługuje renta stała a kiedy okresowa", "oczekiwane": ["fus:art59:ust1"], "musi_zawierac": ["trwał", "okresow"]}
+{"pytanie": "co to znaczy całkowita niezdolność do pracy", "oczekiwane": ["fus:art12:ust2"], "musi_zawierac": ["jakiejkolwiek pracy"]}
+{"pytanie": "na jaki maksymalnie okres orzeka się niezdolność do pracy", "oczekiwane": ["fus:art13:ust2"], "musi_zawierac": ["5 lat|pięć lat|pięciu lat"]}
+{"pytanie": "komu przysługuje renta rodzinna po zmarłym", "oczekiwane": ["fus:art65:ust1"], "musi_zawierac": ["członk"]}
+{"pytanie": "do jakiego wieku dziecko ma prawo do renty rodzinnej gdy się uczy", "oczekiwane": ["fus:art68:ust1"], "musi_zawierac": ["25 lat|25 roku|25. roku"]}
+{"pytanie": "kiedy wdowa ma prawo do renty rodzinnej po mężu", "oczekiwane": ["fus:art70:ust1"], "musi_zawierac": ["50 lat"]}
+{"pytanie": "ile procent świadczenia zmarłego wynosi renta rodzinna dla jednej osoby", "oczekiwane": ["fus:art73:ust1"], "musi_zawierac": ["85 %|85%"]}
+{"pytanie": "kto ma prawo do dodatku pielęgnacyjnego", "oczekiwane": ["fus:art75:ust1"], "musi_zawierac": ["75 lat|75 roku|75. roku", "samodzielnej egzystencji"]}
+{"pytanie": "ile wynosi zasiłek pogrzebowy", "oczekiwane": ["fus:art80"], "musi_zawierac": ["4000 zł|4 000 zł|4000zł"]}
+{"pytanie": "po czyjej śmierci przysługuje zasiłek pogrzebowy", "oczekiwane": ["fus:art77:ust1"], "musi_zawierac": ["ubezpieczonego", "członka rodziny"]}
+{"pytanie": "ile wynosi najniższa emerytura", "oczekiwane": ["fus:art85:ust2"], "musi_zawierac": ["1588,44"]}
+{"pytanie": "od kiedy co roku waloryzuje się emerytury i renty", "oczekiwane": ["fus:art88:ust1"], "musi_zawierac": ["1 marca"]}
+{"pytanie": "czy trzeba rozwiązać umowę o pracę żeby ZUS wypłacał emeryturę", "oczekiwane": ["fus:art103a"], "musi_zawierac": ["zawiesz", "stosunku pracy|stosunek pracy"]}
+{"pytanie": "przy jakim przychodzie emerytura jest zawieszana", "oczekiwane": ["fus:art104:ust7"], "musi_zawierac": ["130 %|130%"]}
+{"pytanie": "przy jakim przychodzie emerytura jest zmniejszana a nie zawieszana", "oczekiwane": ["fus:art104:ust8"], "musi_zawierac": ["70 %|70%", "130 %|130%"]}
+{"pytanie": "w jakim terminie ZUS wydaje decyzję o przyznaniu świadczenia", "oczekiwane": ["fus:art118:ust1"], "musi_zawierac": ["30 dni"]}
+{"pytanie": "od kiedy wypłaca się świadczenie po złożeniu wniosku", "oczekiwane": ["fus:art129:ust1"], "musi_zawierac": ["miesiąca"]}
+{"pytanie": "za jaki okres wstecz można żądać zwrotu nienależnie pobranych świadczeń", "oczekiwane": ["fus:art138:ust4"], "musi_zawierac": ["3 lata|trzech lat|3 lat", "12 miesięcy|dwunastu miesięcy"]}
+{"pytanie": "co to jest nienależnie pobrane świadczenie", "oczekiwane": ["fus:art138:ust2"], "musi_zawierac": ["poucz", "fałszyw"]}
+{"pytanie": "czy ZUS może odstąpić od żądania zwrotu nienależnie pobranych świadczeń", "oczekiwane": ["fus:art138:ust6"], "musi_zawierac": ["szczególnie uzasadnion"]}
+{"pytanie": "do jakiej wysokości można potrącać alimenty z emerytury", "oczekiwane": ["fus:art140:ust1"], "musi_zawierac": ["60 %|60%"]}
+{"pytanie": "jaka kwota emerytury jest wolna od potrąceń przy egzekucji alimentów", "oczekiwane": ["fus:art141:ust1"], "musi_zawierac": ["500 zł"]}
+{"pytanie": "wcześniejsza emerytura za pracę w szczególnych warunkach dla urodzonych po 1948 roku", "oczekiwane": ["fus:art184:ust1"], "musi_zawierac": ["szczególnych warunkach"]}
+{"pytanie": "komu ustala się kapitał początkowy", "oczekiwane": ["fus:art173:ust1"], "musi_zawierac": ["1948"]}
+{"pytanie": "w jakim wymiarze uwzględnia się okresy nieskładkowe przy ustalaniu emerytury", "oczekiwane": ["fus:art5:ust2"], "musi_zawierac": ["jednej trzeciej|1/3"]}
+{"pytanie": "z ilu lat bierze się zarobki do podstawy wymiaru emerytury", "oczekiwane": ["fus:art15:ust1"], "musi_zawierac": ["10 lat|10 kolejnych lat|kolejnych 10 lat|dziesięciu", "20 lat|dwudziestu"]}
+{"pytanie": "kiedy powstaje prawo do świadczenia", "oczekiwane": ["fus:art100:ust1"], "musi_zawierac": ["spełnienia wszystkich warunków|spełnienia warunków|spełnieniem warunków"]}
+{"pytanie": "kiedy ustaje prawo do świadczeń", "oczekiwane": ["fus:art101"], "musi_zawierac": ["śmierc"]}
+{"pytanie": "kto dostaje świadczenie należne osobie która złożyła wniosek i zmarła", "oczekiwane": ["fus:art136:ust1"], "musi_zawierac": ["małżonk", "dzieci"]}
+{"pytanie": "czy postępowanie o emeryturę wszczyna się z urzędu czy na wniosek", "oczekiwane": ["fus:art116:ust1"], "musi_zawierac": ["wniosk|wniosek"]}

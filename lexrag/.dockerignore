@@ -1,0 +1,12 @@
+.venv
+.git
+__pycache__
+.pytest_cache
+data/index*
+data/raw
+data/units
+data/eval_odpowiedzi_*.jsonl
+dane
+docs
+colab
+*.zip

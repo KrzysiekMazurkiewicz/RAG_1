@@ -1,0 +1,4 @@
+# rdzeń – działa na CPU bez GPU i bez pobierania modeli
+numpy>=1.24
+simplemma>=1.0        # lematyzacja PL dla BM25
+pymupdf>=1.23         # PDF z ISAP (rozmiary czcionek -> odcięcie przypisów)

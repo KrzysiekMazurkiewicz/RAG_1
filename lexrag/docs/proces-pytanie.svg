@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="proces" viewBox="0 0 3060 460" width="3060" height="460" role="img" aria-label="Pytanie → odpowiedź">
+<style>
+.pool{fill:none;stroke:#7a8699;stroke-width:1.4}
+.poolhead{fill:#e3e8ef;stroke:#7a8699;stroke-width:1.4}
+.lane{fill:none;stroke:#aab3c0;stroke-width:1;stroke-dasharray:4 3}
+.lanehead{fill:#eef1f5;stroke:#aab3c0;stroke-width:1}
+.task{fill:#eaf2f1;stroke:#0f6e6e;stroke-width:1.6}
+.llm{fill:#fbefd9;stroke:#b8741a;stroke-width:1.6}
+.badge{fill:#b8741a}
+.badgetxt{fill:#ffffff;font:700 9px 'Source Sans 3',system-ui,sans-serif;letter-spacing:.06em}
+.gw{fill:#ffffff;stroke:#3b4654;stroke-width:1.6}
+.start{fill:#ffffff;stroke:#3b4654;stroke-width:1.6}
+.end{fill:#ffffff;stroke:#3b4654;stroke-width:3.2}
+.endodm{fill:#fff1f0;stroke:#a33a2f;stroke-width:3.2}
+.endask{fill:#fbefd9;stroke:#b8741a;stroke-width:3.2}
+.edge{fill:none;stroke:#3b4654;stroke-width:1.4}
+.arrow{fill:#3b4654}
+.txt{fill:#1b2430;font:11.5px 'Source Sans 3',system-ui,sans-serif}
+.lbl{fill:#1b2430;font:11px 'Source Sans 3',system-ui,sans-serif}
+.flow{fill:#3b4654;font:italic 10.5px 'Source Sans 3',system-ui,sans-serif}
+.head{fill:#1b2430;font:600 12.5px 'Source Sans 3',system-ui,sans-serif;letter-spacing:.02em}
+.gwmark{stroke:#3b4654;stroke-width:2}
+</style>
+<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<rect class="pool" x="20" y="10" width="3020" height="440" rx="3"/>
+<rect class="poolhead" x="20" y="10" width="30" height="440" rx="3"/>
+<text class="head" transform="translate(39,230.0) rotate(-90)" text-anchor="middle" dominant-baseline="middle">Pytanie → odpowiedź</text>
+<rect class="lane" x="50" y="10" width="2990" height="295"/>
+<rect class="lanehead" x="50" y="10" width="26" height="295"/>
+<text class="lbl" transform="translate(67,157.5) rotate(-90)" text-anchor="middle" dominant-baseline="middle">Kod (deterministycznie)</text>
+<rect class="lane" x="50" y="305" width="2990" height="145"/>
+<rect class="lanehead" x="50" y="305" width="26" height="145"/>
+<text class="lbl" transform="translate(67,377.5) rotate(-90)" text-anchor="middle" dominant-baseline="middle">LLM lokalny (Ollama)</text>
+<polyline class="edge" points="188.0,235.0 340.0,235.0" marker-end="url(#arr)"/>
+<polyline class="edge" points="365.0,260.0 365.0,375.0 485.0,375.0" marker-end="url(#arr)"/>
+<text class="flow" x="373.0" y="274.0" dominant-baseline="middle">tak</text>
+<polyline class="edge" points="365.0,210.0 365.0,34.0 950.0,34.0 950.0,193.0" marker-end="url(#arr)"/>
+<text class="flow" x="373.0" y="196.0" dominant-baseline="middle">nie</text>
+<polyline class="edge" points="635.0,375.0 755.0,375.0 755.0,260.0" marker-end="url(#arr)"/>
+<polyline class="edge" points="755.0,210.0 755.0,108.0" marker-end="url(#arr)"/>
+<text class="flow" x="763.0" y="196.0" dominant-baseline="middle">tak</text>
+<polyline class="edge" points="780.0,235.0 875.0,235.0" marker-end="url(#arr)"/>
+<text class="flow" x="794.0" y="228.0" dominant-baseline="middle">nie</text>
+<polyline class="edge" points="1025.0,235.0 1070.0,235.0" marker-end="url(#arr)"/>
+<polyline class="edge" points="1220.0,235.0 1315.0,235.0" marker-end="url(#arr)"/>
+<polyline class="edge" points="1340.0,210.0 1340.0,108.0" marker-end="url(#arr)"/>
+<text class="flow" x="1348.0" y="196.0" dominant-baseline="middle">nie</text>
+<polyline class="edge" points="1365.0,235.0 1460.0,235.0" marker-end="url(#arr)"/>
+<text class="flow" x="1379.0" y="228.0" dominant-baseline="middle">tak</text>
+<polyline class="edge" points="1535.0,277.0 1535.0,375.0 1655.0,375.0" marker-end="url(#arr)"/>
+<polyline class="edge" points="1805.0,375.0 1925.0,375.0 1925.0,260.0" marker-end="url(#arr)"/>
+<polyline class="edge" points="1925.0,210.0 1925.0,108.0" marker-end="url(#arr)"/>
+<text class="flow" x="1933.0" y="196.0" dominant-baseline="middle">tak</text>
+<polyline class="edge" points="1950.0,235.0 2045.0,235.0" marker-end="url(#arr)"/>
+<text class="flow" x="1964.0" y="228.0" dominant-baseline="middle">nie</text>
+<polyline class="edge" points="2120.0,277.0 2120.0,375.0 2240.0,375.0" marker-end="url(#arr)"/>
+<polyline class="edge" points="2390.0,375.0 2510.0,375.0 2510.0,260.0" marker-end="url(#arr)"/>
+<polyline class="edge" points="2510.0,210.0 2510.0,108.0" marker-end="url(#arr)"/>
+<text class="flow" x="2518.0" y="196.0" dominant-baseline="middle">nie</text>
+<polyline class="edge" points="2535.0,235.0 2630.0,235.0" marker-end="url(#arr)"/>
+<text class="flow" x="2549.0" y="228.0" dominant-baseline="middle">tak</text>
+<polyline class="edge" points="2780.0,235.0 2882.0,235.0" marker-end="url(#arr)"/>
+<circle class="start" cx="170" cy="235" r="18.0"/>
+<text class="lbl" text-anchor="middle" dominant-baseline="middle"><tspan x="170.0" y="263.2">Pytanie użytkownika</tspan><tspan x="170.0" y="275.8">(chat, ask, WWW)</tspan></text>
+<polygon class="gw" points="365,210.0 390.0,235 365,260.0 340.0,235"/>
+<path class="gwmark" d="M357,227 L373,243 M373,227 L357,243"/>
+<text class="lbl" text-anchor="end" dominant-baseline="middle"><tspan x="334.0" y="261.8">analiza pytania</tspan><tspan x="334.0" y="274.2">włączona?</tspan></text>
+<rect class="llm" x="485.0" y="333.0" width="150" height="84" rx="9"/>
+<rect class="badge" x="597.0" y="332.0" width="38" height="15" rx="4"/><text class="badgetxt" x="616.0" y="340.5" text-anchor="middle" dominant-baseline="middle">LLM</text>
+<text class="txt" text-anchor="middle" dominant-baseline="middle"><tspan x="560.0" y="354.8">Analiza pytania:</tspan><tspan x="560.0" y="368.2">warianty zapytania,</tspan><tspan x="560.0" y="381.8">brakujące dane o</tspan><tspan x="560.0" y="395.2">sytuacji</tspan></text>
+<polygon class="gw" points="755,210.0 780.0,235 755,260.0 730.0,235"/>
+<path class="gwmark" d="M747,227 L763,243 M763,227 L747,243"/>
+<text class="lbl" text-anchor="end" dominant-baseline="middle"><tspan x="724.0" y="262.0">brakuje danych?</tspan></text>
+<circle class="endask" cx="755" cy="90" r="18.0"/>
+<text class="lbl" text-anchor="start" dominant-baseline="middle"><tspan x="781.0" y="90.0">Dopytanie użytkownika</tspan></text>
+<rect class="task" x="875.0" y="193.0" width="150" height="84" rx="9"/>
+<text class="txt" text-anchor="middle" dominant-baseline="middle"><tspan x="950.0" y="214.8">Wyszukiwanie hybrydowe:</tspan><tspan x="950.0" y="228.2">BM25 (lematy) +</tspan><tspan x="950.0" y="241.8">embeddingi, fuzja RRF,</tspan><tspan x="950.0" y="255.2">50 kandydatów</tspan></text>
+<rect class="task" x="1070.0" y="193.0" width="150" height="84" rx="9"/>
+<text class="txt" text-anchor="middle" dominant-baseline="middle"><tspan x="1145.0" y="214.8">Reranking cross-</tspan><tspan x="1145.0" y="228.2">encoderem (bge-</tspan><tspan x="1145.0" y="241.8">reranker-v2-m3) → 8</tspan><tspan x="1145.0" y="255.2">najlepszych ustępów</tspan></text>
+<polygon class="gw" points="1340,210.0 1365.0,235 1340,260.0 1315.0,235"/>
+<path class="gwmark" d="M1332,227 L1348,243 M1348,227 L1332,243"/>
+<text class="lbl" text-anchor="end" dominant-baseline="middle"><tspan x="1309.0" y="261.8">jest kontekst i</tspan><tspan x="1309.0" y="274.2">trafność ≥ próg?</tspan></text>
+<circle class="endodm" cx="1340" cy="90" r="18.0"/>
+<text class="lbl" text-anchor="start" dominant-baseline="middle"><tspan x="1366.0" y="83.8">Odmowa: brak</tspan><tspan x="1366.0" y="96.2">pasującego przepisu</tspan></text>
+<rect class="task" x="1460.0" y="193.0" width="150" height="84" rx="9"/>
+<text class="txt" text-anchor="middle" dominant-baseline="middle"><tspan x="1535.0" y="214.8">Rozszerzenie kontekstu:</tspan><tspan x="1535.0" y="228.2">cały artykuł, odesłania</tspan><tspan x="1535.0" y="241.8">(1 skok), definicje;</tspan><tspan x="1535.0" y="255.2">budżet 12 000 znaków</tspan></text>
+<rect class="llm" x="1655.0" y="333.0" width="150" height="84" rx="9"/>
+<rect class="badge" x="1767.0" y="332.0" width="38" height="15" rx="4"/><text class="badgetxt" x="1786.0" y="340.5" text-anchor="middle" dominant-baseline="middle">LLM</text>
+<text class="txt" text-anchor="middle" dominant-baseline="middle"><tspan x="1730.0" y="354.8">Odpowiedź w JSON: tekst</tspan><tspan x="1730.0" y="368.2">+ id cytowanych</tspan><tspan x="1730.0" y="381.8">przepisów (tylko id z</tspan><tspan x="1730.0" y="395.2">kontekstu)</tspan></text>
+<polygon class="gw" points="1925,210.0 1950.0,235 1925,260.0 1900.0,235"/>
+<path class="gwmark" d="M1917,227 L1933,243 M1933,227 L1917,243"/>
+<text class="lbl" text-anchor="end" dominant-baseline="middle"><tspan x="1894.0" y="261.8">brak pokrycia lub</tspan><tspan x="1894.0" y="274.2">brak cytatów?</tspan></text>
+<circle class="endodm" cx="1925" cy="90" r="18.0"/>
+<text class="lbl" text-anchor="start" dominant-baseline="middle"><tspan x="1951.0" y="83.8">Odmowa: sprawa dla</tspan><tspan x="1951.0" y="96.2">referenta</tspan></text>
+<rect class="task" x="2045.0" y="193.0" width="150" height="84" rx="9"/>
+<text class="txt" text-anchor="middle" dominant-baseline="middle"><tspan x="2120.0" y="208.0">Kontrole</tspan><tspan x="2120.0" y="221.5">deterministyczne: echo</tspan><tspan x="2120.0" y="235.0">pytania, liczby spoza</tspan><tspan x="2120.0" y="248.5">przepisów, odzysk</tspan><tspan x="2120.0" y="262.0">cytatów z adresów</tspan></text>
+<rect class="llm" x="2240.0" y="333.0" width="150" height="84" rx="9"/>
+<rect class="badge" x="2352.0" y="332.0" width="38" height="15" rx="4"/><text class="badgetxt" x="2371.0" y="340.5" text-anchor="middle" dominant-baseline="middle">LLM</text>
+<text class="txt" text-anchor="middle" dominant-baseline="middle"><tspan x="2315.0" y="354.8">Weryfikacja zdanie po</tspan><tspan x="2315.0" y="368.2">zdaniu (werdykt dla</tspan><tspan x="2315.0" y="381.8">każdego zdania) + czy</tspan><tspan x="2315.0" y="395.2">odpowiedź jest na temat</tspan></text>
+<polygon class="gw" points="2510,210.0 2535.0,235 2510,260.0 2485.0,235"/>
+<path class="gwmark" d="M2502,227 L2518,243 M2518,227 L2502,243"/>
+<text class="lbl" text-anchor="end" dominant-baseline="middle"><tspan x="2479.0" y="261.8">na temat i ≥ 1</tspan><tspan x="2479.0" y="274.2">zdanie pokryte?</tspan></text>
+<circle class="endodm" cx="2510" cy="90" r="18.0"/>
+<text class="lbl" text-anchor="start" dominant-baseline="middle"><tspan x="2536.0" y="83.8">Odmowa: brak pokrycia</tspan><tspan x="2536.0" y="96.2">lub nie na temat</tspan></text>
+<rect class="task" x="2630.0" y="193.0" width="150" height="84" rx="9"/>
+<text class="txt" text-anchor="middle" dominant-baseline="middle"><tspan x="2705.0" y="221.5">Cytaty renderowane z</tspan><tspan x="2705.0" y="235.0">indeksu po id (nie z</tspan><tspan x="2705.0" y="248.5">modelu), czasy kroków</tspan></text>
+<circle class="end" cx="2900" cy="235" r="18.0"/>
+<text class="lbl" text-anchor="middle" dominant-baseline="middle"><tspan x="2900.0" y="263.2">Odpowiedź z cytatami i</tspan><tspan x="2900.0" y="275.8">podstawą prawną</tspan></text>
+</svg>

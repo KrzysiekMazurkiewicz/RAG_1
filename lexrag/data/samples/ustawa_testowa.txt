@@ -1,0 +1,146 @@
+USTAWA
+z dnia 1 stycznia 2000 r.
+o świadczeniach testowych
+
+(FIKCYJNY TEKST TESTOWY. Struktura, numeracja i styl wzorowane na ustawie emerytalnej, treść uproszczona i zmyślona. Służy wyłącznie do testów parsera i wyszukiwania. Prawdziwy tekst ustawy pobierz poleceniem: python -m lexrag fetch)
+
+DZIAŁ I
+Przepisy ogólne
+
+Rozdział 1
+Zakres podmiotowy i przedmiotowy ustawy
+
+Art. 1. Ustawa określa warunki nabywania prawa do świadczeń testowych, zasady ustalania ich wysokości oraz zasady zwrotu świadczeń nienależnie pobranych.
+
+Art. 2. Świadczenia na warunkach i w wysokości określonych w ustawie przysługują osobom, które podlegały ubezpieczeniu testowemu.
+
+Art. 4. Użyte w ustawie określenia oznaczają:
+1) świadczeniobiorca – osobę, której przyznano świadczenie testowe;
+2) staż ubezpieczeniowy – okresy składkowe i nieskładkowe ustalone zgodnie z art. 5–7;
+3) płatnik – podmiot zobowiązany do opłacania składek na ubezpieczenie testowe;
+4) organ rentowy – jednostkę organizacyjną Zakładu właściwą do wydawania decyzji w sprawach świadczeń;
+5) najniższe świadczenie – kwotę ogłaszaną corocznie przez Prezesa Zakładu.
+
+Rozdział 2
+Okresy uwzględniane przy ustalaniu prawa do świadczeń
+
+Art. 5. 1. Przy ustalaniu prawa do świadczenia i obliczaniu jego wysokości uwzględnia się okresy składkowe i nieskładkowe.
+2. Okresy nieskładkowe uwzględnia się w wymiarze nieprzekraczającym jednej trzeciej udowodnionych okresów składkowych.
+3. Przy ustalaniu prawa do świadczenia nie uwzględnia się okresów, za które składki zostały zwrócone.
+
+Art. 6. 1. Okresami składkowymi są:
+1) okresy ubezpieczenia;
+2) okresy opłacania składek na ubezpieczenie testowe;
+3) okresy czynnej służby, z zastrzeżeniem ust. 2.
+2. Okresów, o których mowa w ust. 1 pkt 3, nie uwzględnia się, jeżeli zostały uwzględnione przy ustalaniu prawa do świadczenia z innego systemu.
+
+Art. 7. Okresami nieskładkowymi są okresy:
+1) pobierania wynagrodzenia za czas niezdolności do pracy;
+2) urlopu wychowawczego;
+3) nauki w szkole wyższej, w wymiarze nie większym niż 5 lat.
+
+DZIAŁ II
+Świadczenie podstawowe
+
+Rozdział 1
+Świadczenie dla osób urodzonych po dniu 31 grudnia 1948 r.
+
+Art. 24. 1. Osobom urodzonym po dniu 31 grudnia 1948 r. przysługuje świadczenie podstawowe po osiągnięciu wieku wynoszącego co najmniej 60 lat dla kobiet i co najmniej 65 lat dla mężczyzn, z zastrzeżeniem art. 46 i 184.
+1a. (uchylony)
+2. Wiek, o którym mowa w ust. 1, ustala się na dzień złożenia wniosku o świadczenie.
+3. Świadczenie przysługuje bez względu na długość stażu ubezpieczeniowego, z zastrzeżeniem art. 87.
+
+Art. 25. 1. Podstawę obliczenia świadczenia stanowi kwota składek zewidencjonowanych na koncie świadczeniobiorcy, z uwzględnieniem:
+1) waloryzacji składek;
+2) kapitału początkowego, o którym mowa w art. 173;
+3) środków zewidencjonowanych na subkoncie.
+2. Składki, o których mowa w ust. 1, podlegają waloryzacji corocznie, od dnia 1 czerwca.
+
+Art. 26. 1. Świadczenie stanowi równowartość kwoty będącej wynikiem podzielenia podstawy obliczenia przez średnie dalsze trwanie życia dla osób w wieku równym wiekowi przejścia na świadczenie.
+2. Średnie dalsze trwanie życia ogłasza Prezes Głównego Urzędu Statystycznego w formie komunikatu.
+
+Rozdział 2
+Świadczenie dla osób urodzonych przed dniem 1 stycznia 1949 r.
+
+Art. 27. 1. Osobom urodzonym przed dniem 1 stycznia 1949 r. przysługuje świadczenie, jeżeli spełniły łącznie następujące warunki:
+1) osiągnęły wiek co najmniej 60 lat dla kobiet i co najmniej 65 lat dla mężczyzn;
+2) mają staż ubezpieczeniowy wynoszący co najmniej 20 lat dla kobiet i 25 lat dla mężczyzn.
+2. Osobom, które nie spełniają warunku stażu, o którym mowa w ust. 1 pkt 2, przysługuje świadczenie, jeżeli mają staż ubezpieczeniowy wynoszący co najmniej 15 lat dla kobiet i 20 lat dla mężczyzn.
+
+Art. 29. 1. Osoby urodzone przed dniem 1 stycznia 1949 r., które nie osiągnęły wieku, o którym mowa w art. 27 ust. 1 pkt 1, mogą przejść na świadczenie:
+1) kobieta – po osiągnięciu wieku 55 lat, jeżeli ma co najmniej 30-letni staż ubezpieczeniowy;
+2) mężczyzna – po osiągnięciu wieku 60 lat, jeżeli ma co najmniej 35-letni staż ubezpieczeniowy.
+2. Świadczenie, o którym mowa w ust. 1, przysługuje wyłącznie osobom, które ostatnio przed zgłoszeniem wniosku były pracownikami.
+
+Art. 32. 1. Osobom zatrudnionym w szczególnych warunkach lub w szczególnym charakterze przysługuje świadczenie w wieku niższym niż określony w art. 27 ust. 1 pkt 1.
+2. Za pracowników zatrudnionych w szczególnych warunkach uważa się pracowników zatrudnionych przy pracach o znacznej szkodliwości dla zdrowia oraz o znacznym stopniu uciążliwości.
+3. Wiek, o którym mowa w ust. 1, oraz rodzaje prac określa, w drodze rozporządzenia, Rada Ministrów.
+
+Rozdział 3
+Świadczenie dla osób urodzonych po dniu 31 grudnia 1948 r. a przed dniem 1 stycznia 1969 r.
+
+Art. 46. 1. Prawo do świadczenia na warunkach określonych w art. 29 i 32 przysługuje również osobom urodzonym po dniu 31 grudnia 1948 r. a przed dniem 1 stycznia 1969 r., jeżeli spełniają łącznie następujące warunki:
+1) nie przystąpiły do otwartego funduszu;
+2) warunki do uzyskania świadczenia określone w tych przepisach spełnią do dnia 31 grudnia 2008 r.
+2. Przepis ust. 1 stosuje się odpowiednio do osób, które przystąpiły do otwartego funduszu i złożyły wniosek o przekazanie środków na dochody budżetu państwa.
+
+DZIAŁ VIII
+Zasady ustalania świadczeń
+
+Rozdział 1
+Najniższe świadczenie
+
+Art. 87. 1. W przypadku gdy świadczenie jest niższe od kwoty najniższego świadczenia, podwyższa się je do tej kwoty, jeżeli świadczeniobiorca ma staż ubezpieczeniowy wynoszący co najmniej 20 lat dla kobiet i 25 lat dla mężczyzn.
+2. Podwyższenie, o którym mowa w ust. 1, nie przysługuje osobom, które pobierają świadczenie z innego systemu w wysokości wyższej niż najniższe świadczenie.
+
+Rozdział 2
+Zawieszanie i zmniejszanie świadczeń
+
+Art. 103. 1. Prawo do świadczenia ulega zawieszeniu lub świadczenie ulega zmniejszeniu na zasadach określonych w art. 104.
+2. Przepisu ust. 1 nie stosuje się do osób, które osiągnęły wiek, o którym mowa w art. 24 ust. 1.
+
+Art. 103a. Prawo do świadczenia ulega zawieszeniu bez względu na wysokość przychodu uzyskiwanego przez świadczeniobiorcę z tytułu zatrudnienia kontynuowanego bez uprzedniego rozwiązania stosunku pracy z pracodawcą, na rzecz którego wykonywał je bezpośrednio przed dniem nabycia prawa do świadczenia.
+
+Art. 104. 1. Prawo do świadczenia ulega zawieszeniu w razie osiągania przychodu w kwocie wyższej niż 130% przeciętnego miesięcznego wynagrodzenia.
+2. W razie osiągania przychodu w kwocie przekraczającej 70% przeciętnego miesięcznego wynagrodzenia, nie wyżej jednak niż 130% tej kwoty, świadczenie ulega zmniejszeniu o kwotę przekroczenia.
+3. Świadczeniobiorca jest obowiązany zawiadomić organ rentowy o podjęciu działalności i o wysokości osiąganego przychodu.
+
+DZIAŁ IX
+Zwrot nienależnie pobranych świadczeń
+
+Art. 138. 1. Osoba, która nienależnie pobrała świadczenia, jest obowiązana do ich zwrotu.
+2. Za nienależnie pobrane świadczenia uważa się:
+1) świadczenia wypłacone mimo zaistnienia okoliczności powodujących ustanie lub zawieszenie prawa do świadczeń albo wstrzymanie wypłaty świadczeń w całości lub w części, jeżeli osoba pobierająca świadczenia była pouczona o braku prawa do ich pobierania;
+2) świadczenia przyznane lub wypłacone na podstawie fałszywych zeznań lub dokumentów albo w innych przypadkach świadomego wprowadzenia w błąd przez osobę pobierającą świadczenia.
+3. Nie można żądać zwrotu kwot nienależnie pobranych świadczeń za okres dłuższy niż 12 miesięcy, jeżeli osoba pobierająca świadczenia zawiadomiła organ rentowy o zajściu okoliczności powodujących ustanie lub zawieszenie prawa do świadczeń, a mimo to świadczenia były nadal wypłacane, w pozostałych przypadkach – za okres dłuższy niż 3 lata, z zastrzeżeniem ust. 5.
+4. Organ rentowy może odstąpić od żądania zwrotu kwot nienależnie pobranych świadczeń w całości lub w części, zmniejszyć wysokość potrąceń albo zawiesić dokonywanie potrąceń na okres nie dłuższy niż 12 miesięcy, jeżeli zachodzą szczególnie uzasadnione okoliczności.
+5. Kwoty nienależnie pobranych świadczeń ustalone prawomocną decyzją organu rentowego ulegają przedawnieniu po upływie 10 lat od dnia uprawomocnienia się decyzji.
+6. Decyzja o ustaleniu kwot nienależnie pobranych świadczeń nie może być wydana później niż w terminie 5 lat od ostatniego dnia okresu, za który pobrano nienależne świadczenie.
+
+Art. 139. 1. Ze świadczeń pieniężnych określonych w ustawie potrąca się, z uwzględnieniem art. 140, w następującej kolejności:
+1) świadczenia wypłacone zaliczkowo;
+2) kwoty nienależnie pobranych świadczeń wraz z odsetkami;
+3) sumy egzekwowane na mocy tytułów wykonawczych na zaspokojenie należności alimentacyjnych;
+4) sumy egzekwowane na mocy tytułów wykonawczych na pokrycie innych należności.
+2. Potrąceń, o których mowa w ust. 1, dokonuje się po odliczeniu składki na ubezpieczenie zdrowotne oraz zaliczki na podatek dochodowy.
+
+Art. 140. 1. Potrącenia, o których mowa w art. 139, mogą być dokonywane w następujących granicach:
+1) należności alimentacyjnych – do wysokości 60% świadczenia;
+2) nienależnie pobranych świadczeń – do wysokości 50% świadczenia;
+3) innych egzekwowanych należności – do wysokości 25% świadczenia.
+2. Wolna od potrąceń jest kwota odpowiadająca 75% najniższego świadczenia.
+
+Art. 141. Egzekucję kwot nienależnie pobranych świadczeń, których nie można potrącić z bieżących świadczeń, prowadzi się w trybie przepisów o postępowaniu egzekucyjnym w administracji, po uprzednim doręczeniu upomnienia.
+
+DZIAŁ X
+Przepisy przejściowe i końcowe
+
+Art. 173. 1. Dla osób urodzonych po dniu 31 grudnia 1948 r., które przed dniem 1 stycznia 1999 r. opłacały składki, ustala się kapitał początkowy.
+2. Kapitał początkowy stanowi równowartość kwoty obliczonej według zasad określonych w art. 174.
+
+Art. 184. 1. Osobom urodzonym po dniu 31 grudnia 1948 r. przysługuje świadczenie po osiągnięciu wieku przewidzianego w art. 32, jeżeli w dniu wejścia w życie ustawy osiągnęły:
+1) okres zatrudnienia w szczególnych warunkach lub w szczególnym charakterze wymagany w przepisach dotychczasowych do nabycia prawa do świadczenia w wieku niższym niż 60 lat dla kobiet i 65 lat dla mężczyzn;
+2) staż ubezpieczeniowy, o którym mowa w art. 27 ust. 1 pkt 2.
+2. Świadczenie, o którym mowa w ust. 1, przysługuje pod warunkiem nieprzystąpienia do otwartego funduszu albo złożenia wniosku o przekazanie środków zgromadzonych na rachunku w otwartym funduszu na dochody budżetu państwa.
+
+Art. 196. Ustawa wchodzi w życie z dniem 1 stycznia 2000 r.

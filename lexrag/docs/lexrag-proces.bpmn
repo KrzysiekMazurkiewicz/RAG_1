@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_lexrag" targetNamespace="http://lexrag.local/bpmn" exporter="lexrag docs/gen" exporterVersion="0.2.0">
+  <bpmn:collaboration id="Collaboration_lexrag">
+    <bpmn:participant id="Participant_wgranie" name="Wgranie aktu (indeksowanie, bez LLM)" processRef="Process_wgranie" />
+    <bpmn:participant id="Participant_pytanie" name="Pytanie → odpowiedź" processRef="Process_pytanie" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_wgranie" isExecutable="false">
+    <bpmn:startEvent id="S1" name="Plik aktu: PDF z ISAP, DOCX, HTML lub TXT">
+      <bpmn:outgoing>F1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:scriptTask id="T1" name="Ekstrakcja tekstu po rozmiarze czcionki (przypisy i indeksy górne odpadają)">
+      <bpmn:incoming>F1</bpmn:incoming>
+      <bpmn:outgoing>F2</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="T2" name="Parser struktury: dział, rozdział, art., ust., pkt; załączniki; uchylone; podwójne brzmienia">
+      <bpmn:incoming>F2</bpmn:incoming>
+      <bpmn:outgoing>F3</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="T3" name="Graf odesłań (wewnętrzne + do innych ustaw) i słownik definicji">
+      <bpmn:incoming>F3</bpmn:incoming>
+      <bpmn:outgoing>F4</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="T4" name="Lematyzacja (simplemma) i indeks BM25">
+      <bpmn:incoming>F4</bpmn:incoming>
+      <bpmn:outgoing>F5</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="T5" name="Embeddingi jednostek (mmlw-retrieval-roberta-large, lokalnie)">
+      <bpmn:incoming>F5</bpmn:incoming>
+      <bpmn:outgoing>F6</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="T6" name="Zapis indeksu i statystyk: luki w numeracji, przypisy, duplikaty">
+      <bpmn:incoming>F6</bpmn:incoming>
+      <bpmn:outgoing>F7</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:endEvent id="E1" name="Indeks gotowy (jednostka = ustęp, z id np. fus:art138:ust3)">
+      <bpmn:incoming>F7</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="F1" sourceRef="S1" targetRef="T1" />
+    <bpmn:sequenceFlow id="F2" sourceRef="T1" targetRef="T2" />
+    <bpmn:sequenceFlow id="F3" sourceRef="T2" targetRef="T3" />
+    <bpmn:sequenceFlow id="F4" sourceRef="T3" targetRef="T4" />
+    <bpmn:sequenceFlow id="F5" sourceRef="T4" targetRef="T5" />
+    <bpmn:sequenceFlow id="F6" sourceRef="T5" targetRef="T6" />
+    <bpmn:sequenceFlow id="F7" sourceRef="T6" targetRef="E1" />
+  </bpmn:process>
+  <bpmn:process id="Process_pytanie" isExecutable="false">
+    <bpmn:laneSet id="LaneSet_pytanie">
+      <bpmn:lane id="Lane_kod" name="Kod (deterministycznie)">
+        <bpmn:flowNodeRef>S2</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>G0</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>G1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>E2</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T8</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T9</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>G2</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>E3</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T10</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>G3</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>E4</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T12</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>G4</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>E5</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T14</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>E6</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_llm" name="LLM lokalny (Ollama)">
+        <bpmn:flowNodeRef>T7</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T11</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T13</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="S2" name="Pytanie użytkownika (chat, ask, WWW)">
+      <bpmn:outgoing>F10</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:exclusiveGateway id="G0" name="analiza pytania włączona?">
+      <bpmn:incoming>F10</bpmn:incoming>
+      <bpmn:outgoing>F11</bpmn:outgoing>
+      <bpmn:outgoing>F12</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="T7" name="Analiza pytania: warianty zapytania, brakujące dane o sytuacji">
+      <bpmn:incoming>F11</bpmn:incoming>
+      <bpmn:outgoing>F13</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="G1" name="brakuje danych?">
+      <bpmn:incoming>F13</bpmn:incoming>
+      <bpmn:outgoing>F14</bpmn:outgoing>
+      <bpmn:outgoing>F15</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="E2" name="Dopytanie użytkownika">
+      <bpmn:incoming>F14</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:scriptTask id="T8" name="Wyszukiwanie hybrydowe: BM25 (lematy) + embeddingi, fuzja RRF, 50 kandydatów">
+      <bpmn:incoming>F12</bpmn:incoming>
+      <bpmn:incoming>F15</bpmn:incoming>
+      <bpmn:outgoing>F16</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="T9" name="Reranking cross-encoderem (bge-reranker-v2-m3) → 8 najlepszych ustępów">
+      <bpmn:incoming>F16</bpmn:incoming>
+      <bpmn:outgoing>F17</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:exclusiveGateway id="G2" name="jest kontekst i trafność ≥ próg?">
+      <bpmn:incoming>F17</bpmn:incoming>
+      <bpmn:outgoing>F18</bpmn:outgoing>
+      <bpmn:outgoing>F19</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="E3" name="Odmowa: brak pasującego przepisu">
+      <bpmn:incoming>F18</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:scriptTask id="T10" name="Rozszerzenie kontekstu: cały artykuł, odesłania (1 skok), definicje; budżet 12 000 znaków">
+      <bpmn:incoming>F19</bpmn:incoming>
+      <bpmn:outgoing>F20</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:serviceTask id="T11" name="Odpowiedź w JSON: tekst + id cytowanych przepisów (tylko id z kontekstu)">
+      <bpmn:incoming>F20</bpmn:incoming>
+      <bpmn:outgoing>F21</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="G3" name="brak pokrycia lub brak cytatów?">
+      <bpmn:incoming>F21</bpmn:incoming>
+      <bpmn:outgoing>F22</bpmn:outgoing>
+      <bpmn:outgoing>F23</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="E4" name="Odmowa: sprawa dla referenta">
+      <bpmn:incoming>F22</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:scriptTask id="T12" name="Kontrole deterministyczne: echo pytania, liczby spoza przepisów, odzysk cytatów z adresów">
+      <bpmn:incoming>F23</bpmn:incoming>
+      <bpmn:outgoing>F24</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:serviceTask id="T13" name="Weryfikacja zdanie po zdaniu (werdykt dla każdego zdania) + czy odpowiedź jest na temat">
+      <bpmn:incoming>F24</bpmn:incoming>
+      <bpmn:outgoing>F25</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="G4" name="na temat i ≥ 1 zdanie pokryte?">
+      <bpmn:incoming>F25</bpmn:incoming>
+      <bpmn:outgoing>F26</bpmn:outgoing>
+      <bpmn:outgoing>F27</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="E5" name="Odmowa: brak pokrycia lub nie na temat">
+      <bpmn:incoming>F26</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:scriptTask id="T14" name="Cytaty renderowane z indeksu po id (nie z modelu), czasy kroków">
+      <bpmn:incoming>F27</bpmn:incoming>
+      <bpmn:outgoing>F28</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:endEvent id="E6" name="Odpowiedź z cytatami i podstawą prawną">
+      <bpmn:incoming>F28</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="F10" sourceRef="S2" targetRef="G0" />
+    <bpmn:sequenceFlow id="F11" name="tak" sourceRef="G0" targetRef="T7" />
+    <bpmn:sequenceFlow id="F12" name="nie" sourceRef="G0" targetRef="T8" />
+    <bpmn:sequenceFlow id="F13" sourceRef="T7" targetRef="G1" />
+    <bpmn:sequenceFlow id="F14" name="tak" sourceRef="G1" targetRef="E2" />
+    <bpmn:sequenceFlow id="F15" name="nie" sourceRef="G1" targetRef="T8" />
+    <bpmn:sequenceFlow id="F16" sourceRef="T8" targetRef="T9" />
+    <bpmn:sequenceFlow id="F17" sourceRef="T9" targetRef="G2" />
+    <bpmn:sequenceFlow id="F18" name="nie" sourceRef="G2" targetRef="E3" />
+    <bpmn:sequenceFlow id="F19" name="tak" sourceRef="G2" targetRef="T10" />
+    <bpmn:sequenceFlow id="F20" sourceRef="T10" targetRef="T11" />
+    <bpmn:sequenceFlow id="F21" sourceRef="T11" targetRef="G3" />
+    <bpmn:sequenceFlow id="F22" name="tak" sourceRef="G3" targetRef="E4" />
+    <bpmn:sequenceFlow id="F23" name="nie" sourceRef="G3" targetRef="T12" />
+    <bpmn:sequenceFlow id="F24" sourceRef="T12" targetRef="T13" />
+    <bpmn:sequenceFlow id="F25" sourceRef="T13" targetRef="G4" />
+    <bpmn:sequenceFlow id="F26" name="nie" sourceRef="G4" targetRef="E5" />
+    <bpmn:sequenceFlow id="F27" name="tak" sourceRef="G4" targetRef="T14" />
+    <bpmn:sequenceFlow id="F28" sourceRef="T14" targetRef="E6" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_lexrag">
+    <bpmndi:BPMNPlane id="BPMNPlane_lexrag" bpmnElement="Collaboration_lexrag">
+      <bpmndi:BPMNShape id="Participant_wgranie_di" bpmnElement="Participant_wgranie" isHorizontal="true"><dc:Bounds x="20" y="0" width="1690" height="240" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S1_di" bpmnElement="S1"><dc:Bounds x="132" y="132" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="85" y="172" width="130" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T1_di" bpmnElement="T1"><dc:Bounds x="275" y="108" width="150" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T2_di" bpmnElement="T2"><dc:Bounds x="475" y="108" width="150" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T3_di" bpmnElement="T3"><dc:Bounds x="675" y="108" width="150" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T4_di" bpmnElement="T4"><dc:Bounds x="875" y="108" width="150" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T5_di" bpmnElement="T5"><dc:Bounds x="1075" y="108" width="150" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T6_di" bpmnElement="T6"><dc:Bounds x="1275" y="108" width="150" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="E1_di" bpmnElement="E1"><dc:Bounds x="1532" y="132" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="1485" y="172" width="130" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="F1_di" bpmnElement="F1"><di:waypoint x="168" y="150" /><di:waypoint x="275" y="150" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F2_di" bpmnElement="F2"><di:waypoint x="425" y="150" /><di:waypoint x="475" y="150" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F3_di" bpmnElement="F3"><di:waypoint x="625" y="150" /><di:waypoint x="675" y="150" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F4_di" bpmnElement="F4"><di:waypoint x="825" y="150" /><di:waypoint x="875" y="150" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F5_di" bpmnElement="F5"><di:waypoint x="1025" y="150" /><di:waypoint x="1075" y="150" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F6_di" bpmnElement="F6"><di:waypoint x="1225" y="150" /><di:waypoint x="1275" y="150" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F7_di" bpmnElement="F7"><di:waypoint x="1425" y="150" /><di:waypoint x="1532" y="150" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Participant_pytanie_di" bpmnElement="Participant_pytanie" isHorizontal="true"><dc:Bounds x="20" y="300" width="3020" height="440" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_kod_di" bpmnElement="Lane_kod" isHorizontal="true"><dc:Bounds x="50" y="300" width="2990" height="295" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_llm_di" bpmnElement="Lane_llm" isHorizontal="true"><dc:Bounds x="50" y="595" width="2990" height="145" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S2_di" bpmnElement="S2"><dc:Bounds x="152" y="507" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="105" y="547" width="130" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="G0_di" bpmnElement="G0" isMarkerVisible="true"><dc:Bounds x="340" y="500" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="195" y="539" width="140" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T7_di" bpmnElement="T7"><dc:Bounds x="485" y="623" width="150" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="G1_di" bpmnElement="G1" isMarkerVisible="true"><dc:Bounds x="730" y="500" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="585" y="539" width="140" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="E2_di" bpmnElement="E2"><dc:Bounds x="737" y="362" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="779" y="366" width="130" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T8_di" bpmnElement="T8"><dc:Bounds x="875" y="483" width="150" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T9_di" bpmnElement="T9"><dc:Bounds x="1070" y="483" width="150" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="G2_di" bpmnElement="G2" isMarkerVisible="true"><dc:Bounds x="1315" y="500" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="1170" y="539" width="140" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="E3_di" bpmnElement="E3"><dc:Bounds x="1322" y="362" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="1364" y="366" width="130" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T10_di" bpmnElement="T10"><dc:Bounds x="1460" y="483" width="150" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T11_di" bpmnElement="T11"><dc:Bounds x="1655" y="623" width="150" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="G3_di" bpmnElement="G3" isMarkerVisible="true"><dc:Bounds x="1900" y="500" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="1755" y="539" width="140" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="E4_di" bpmnElement="E4"><dc:Bounds x="1907" y="362" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="1949" y="366" width="130" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T12_di" bpmnElement="T12"><dc:Bounds x="2045" y="483" width="150" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T13_di" bpmnElement="T13"><dc:Bounds x="2240" y="623" width="150" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="G4_di" bpmnElement="G4" isMarkerVisible="true"><dc:Bounds x="2485" y="500" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="2340" y="539" width="140" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="E5_di" bpmnElement="E5"><dc:Bounds x="2492" y="362" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="2534" y="366" width="130" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="T14_di" bpmnElement="T14"><dc:Bounds x="2630" y="483" width="150" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="E6_di" bpmnElement="E6"><dc:Bounds x="2882" y="507" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="2835" y="547" width="130" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="F10_di" bpmnElement="F10"><di:waypoint x="188" y="525" /><di:waypoint x="340" y="525" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F11_di" bpmnElement="F11"><di:waypoint x="365" y="550" /><di:waypoint x="365" y="665" /><di:waypoint x="485" y="665" /><bpmndi:BPMNLabel><dc:Bounds x="355" y="590" width="24" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F12_di" bpmnElement="F12"><di:waypoint x="365" y="500" /><di:waypoint x="365" y="324" /><di:waypoint x="950" y="324" /><di:waypoint x="950" y="483" /><bpmndi:BPMNLabel><dc:Bounds x="355" y="394" width="24" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F13_di" bpmnElement="F13"><di:waypoint x="635" y="665" /><di:waypoint x="755" y="665" /><di:waypoint x="755" y="550" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F14_di" bpmnElement="F14"><di:waypoint x="755" y="500" /><di:waypoint x="755" y="398" /><bpmndi:BPMNLabel><dc:Bounds x="745" y="431" width="24" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F15_di" bpmnElement="F15"><di:waypoint x="780" y="525" /><di:waypoint x="875" y="525" /><bpmndi:BPMNLabel><dc:Bounds x="818" y="507" width="24" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F16_di" bpmnElement="F16"><di:waypoint x="1025" y="525" /><di:waypoint x="1070" y="525" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F17_di" bpmnElement="F17"><di:waypoint x="1220" y="525" /><di:waypoint x="1315" y="525" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F18_di" bpmnElement="F18"><di:waypoint x="1340" y="500" /><di:waypoint x="1340" y="398" /><bpmndi:BPMNLabel><dc:Bounds x="1330" y="431" width="24" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F19_di" bpmnElement="F19"><di:waypoint x="1365" y="525" /><di:waypoint x="1460" y="525" /><bpmndi:BPMNLabel><dc:Bounds x="1402" y="507" width="24" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F20_di" bpmnElement="F20"><di:waypoint x="1535" y="567" /><di:waypoint x="1535" y="665" /><di:waypoint x="1655" y="665" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F21_di" bpmnElement="F21"><di:waypoint x="1805" y="665" /><di:waypoint x="1925" y="665" /><di:waypoint x="1925" y="550" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F22_di" bpmnElement="F22"><di:waypoint x="1925" y="500" /><di:waypoint x="1925" y="398" /><bpmndi:BPMNLabel><dc:Bounds x="1915" y="431" width="24" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F23_di" bpmnElement="F23"><di:waypoint x="1950" y="525" /><di:waypoint x="2045" y="525" /><bpmndi:BPMNLabel><dc:Bounds x="1988" y="507" width="24" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F24_di" bpmnElement="F24"><di:waypoint x="2120" y="567" /><di:waypoint x="2120" y="665" /><di:waypoint x="2240" y="665" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F25_di" bpmnElement="F25"><di:waypoint x="2390" y="665" /><di:waypoint x="2510" y="665" /><di:waypoint x="2510" y="550" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F26_di" bpmnElement="F26"><di:waypoint x="2510" y="500" /><di:waypoint x="2510" y="398" /><bpmndi:BPMNLabel><dc:Bounds x="2500" y="431" width="24" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F27_di" bpmnElement="F27"><di:waypoint x="2535" y="525" /><di:waypoint x="2630" y="525" /><bpmndi:BPMNLabel><dc:Bounds x="2572" y="507" width="24" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="F28_di" bpmnElement="F28"><di:waypoint x="2780" y="525" /><di:waypoint x="2882" y="525" /></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

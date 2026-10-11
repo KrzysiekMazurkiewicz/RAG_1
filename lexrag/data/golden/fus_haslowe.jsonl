@@ -1,0 +1,14 @@
+# Pytania hasłowe (jak ludzie piszą w wyszukiwarkę) do ustawy o FUS: oczekiwana odpowiedź przeglądowa.
+# W `oczekiwane` wpis „a|b” to alternatywa – wystarczy zacytować jeden z nich.
+{"pytanie": "wcześniejsza emerytura", "oczekiwane": ["fus:art29:ust1|fus:art184:ust1"], "musi_zawierac": ["55 lat|szczególnych warunkach|szczególnym charakterze"]}
+{"pytanie": "renta rodzinna", "oczekiwane": ["fus:art65:ust1"], "musi_zawierac": ["członk"]}
+{"pytanie": "zasiłek pogrzebowy", "oczekiwane": ["fus:art77:ust1|fus:art80"], "musi_zawierac": ["śmierci|4000 zł|4 000 zł"]}
+{"pytanie": "nienależnie pobrane świadczenia", "oczekiwane": ["fus:art138:ust1|fus:art138:ust2|fus:art138:ust4"], "musi_zawierac": ["zwrot|zwróc|poucz"]}
+{"pytanie": "waloryzacja emerytur", "oczekiwane": ["fus:art88:ust1"], "musi_zawierac": ["1 marca"]}
+{"pytanie": "kapitał początkowy", "oczekiwane": ["fus:art173:ust1"], "musi_zawierac": ["1948"]}
+{"pytanie": "zawieszenie emerytury", "oczekiwane": ["fus:art104:ust7|fus:art104:ust8|fus:art103a"], "musi_zawierac": ["130 %|130%|70 %|70%|stosunku pracy"]}
+{"pytanie": "dodatek pielęgnacyjny", "oczekiwane": ["fus:art75:ust1"], "musi_zawierac": ["75 lat|75 roku|75. roku|samodzielnej egzystencji"]}
+{"pytanie": "renta z tytułu niezdolności do pracy", "oczekiwane": ["fus:art57:ust1"], "musi_zawierac": ["niezdoln", "składkow"]}
+{"pytanie": "najniższa emerytura", "oczekiwane": ["fus:art85:ust2"], "musi_zawierac": ["1588,44"]}
+{"pytanie": "potrącenia z emerytury", "oczekiwane": ["fus:art140:ust1|fus:art139:ust1"], "musi_zawierac": ["60 %|60%|alimentacyjn|egzekucyj"]}
+{"pytanie": "emerytura z urzędu", "oczekiwane": ["fus:art24a:ust1"], "musi_zawierac": ["z urzędu"]}

@@ -1,0 +1,42 @@
+# Złoty zbiór do ustawy o świadczeniach pieniężnych z ubezpieczenia społecznego w razie choroby i macierzyństwa
+# (tekst jednolity Dz.U. 2026 poz. 854, kod "zas"). Format jak w fus.jsonl.
+{"pytanie": "po jakim czasie ubezpieczenia nabywa się prawo do zasiłku chorobowego", "oczekiwane": ["zas:art4:ust1"], "musi_zawierac": ["30 dni", "90 dni"]}
+{"pytanie": "czy absolwent szkoły ma prawo do zasiłku chorobowego od pierwszego dnia ubezpieczenia", "oczekiwane": ["zas:art4:ust3"], "musi_zawierac": ["pierwszego dnia", "absolwent"]}
+{"pytanie": "jak długo można pobierać zasiłek chorobowy", "oczekiwane": ["zas:art8:ust1"], "musi_zawierac": ["182", "270"]}
+{"pytanie": "czy do okresu zasiłkowego wlicza się wcześniejsze zwolnienia lekarskie", "oczekiwane": ["zas:art9:ust2"], "musi_zawierac": ["60 dni"]}
+{"pytanie": "ile procent podstawy wymiaru wynosi zasiłek chorobowy", "oczekiwane": ["zas:art11:ust1"], "musi_zawierac": ["80 %|80%"]}
+{"pytanie": "kiedy zasiłek chorobowy wynosi 100 procent", "oczekiwane": ["zas:art11:ust2"], "musi_zawierac": ["ciąży", "wypadku w drodze"]}
+{"pytanie": "ile dni liczy miesiąc przy ustalaniu zasiłku chorobowego", "oczekiwane": ["zas:art11:ust5"], "musi_zawierac": ["30 dni"]}
+{"pytanie": "czy zasiłek chorobowy przysługuje w czasie urlopu bezpłatnego albo wychowawczego", "oczekiwane": ["zas:art12:ust2"], "musi_zawierac": ["urlopu bezpłatnego", "urlopu wychowawczego"]}
+{"pytanie": "czy zasiłek chorobowy przysługuje gdy zachorowałem po ustaniu zatrudnienia", "oczekiwane": ["zas:art7"], "musi_zawierac": ["30 dni", "14 dni"]}
+{"pytanie": "komu nie przysługuje zasiłek chorobowy za okres po ustaniu tytułu ubezpieczenia", "oczekiwane": ["zas:art13:ust1"], "musi_zawierac": ["emerytur", "działalność zarobkową"]}
+{"pytanie": "co się dzieje z zasiłkiem chorobowym gdy pracownik pracuje na zwolnieniu lekarskim", "oczekiwane": ["zas:art17:ust1"], "musi_zawierac": ["traci prawo", "cały okres"]}
+{"pytanie": "czy po nadużyciu alkoholu przysługuje zasiłek chorobowy", "oczekiwane": ["zas:art16"], "musi_zawierac": ["5 dni"]}
+{"pytanie": "kiedy przysługuje świadczenie rehabilitacyjne", "oczekiwane": ["zas:art18:ust1"], "musi_zawierac": ["wyczerpaniu zasiłku chorobowego", "rokuj"]}
+{"pytanie": "jak długo można pobierać świadczenie rehabilitacyjne", "oczekiwane": ["zas:art18:ust2"], "musi_zawierac": ["12 miesięcy"]}
+{"pytanie": "ile wynosi świadczenie rehabilitacyjne", "oczekiwane": ["zas:art19:ust1"], "musi_zawierac": ["90 %|90%", "75 %|75%"]}
+{"pytanie": "czy emeryt może dostać świadczenie rehabilitacyjne", "oczekiwane": ["zas:art18:ust7"], "musi_zawierac": ["nie przysługuje", "emerytur"]}
+{"pytanie": "komu przysługuje zasiłek wyrównawczy", "oczekiwane": ["zas:art23:ust1"], "musi_zawierac": ["zmniejszoną sprawnością"]}
+{"pytanie": "jak oblicza się wysokość zasiłku wyrównawczego", "oczekiwane": ["zas:art24:ust1"], "musi_zawierac": ["różnic"]}
+{"pytanie": "komu przysługuje zasiłek macierzyński", "oczekiwane": ["zas:art29:ust1"], "musi_zawierac": ["urodziła dziecko", "14 roku życia"]}
+{"pytanie": "po ilu tygodniach matka może zrezygnować z zasiłku macierzyńskiego na rzecz ojca", "oczekiwane": ["zas:art29:ust3"], "musi_zawierac": ["14 tygodni"]}
+{"pytanie": "ile wynosi zasiłek macierzyński za okres urlopu macierzyńskiego", "oczekiwane": ["zas:art31:ust1"], "musi_zawierac": ["100 %|100%"]}
+{"pytanie": "ile wynosi zasiłek macierzyński za okres urlopu rodzicielskiego", "oczekiwane": ["zas:art31:ust2"], "musi_zawierac": ["70 %|70%"]}
+{"pytanie": "ile wynosi zasiłek macierzyński gdy matka od razu wnioskuje o cały urlop macierzyński i rodzicielski", "oczekiwane": ["zas:art31:ust3"], "musi_zawierac": ["81,5"]}
+{"pytanie": "w jakim terminie po porodzie składa się wniosek o zasiłek macierzyński za pełny okres", "oczekiwane": ["zas:art30a:ust1"], "musi_zawierac": ["21 dni"]}
+{"pytanie": "do jakiego wieku dziecka przysługuje zasiłek opiekuńczy przy zamknięciu przedszkola", "oczekiwane": ["zas:art32:ust1"], "musi_zawierac": ["8 lat"]}
+{"pytanie": "ile dni zasiłku opiekuńczego w roku przysługuje na dziecko a ile na innego członka rodziny", "oczekiwane": ["zas:art33:ust1"], "musi_zawierac": ["60 dni", "14 dni"]}
+{"pytanie": "ile procent wynosi zasiłek opiekuńczy", "oczekiwane": ["zas:art35:ust1"], "musi_zawierac": ["80 %|80%"]}
+{"pytanie": "czy zasiłek opiekuńczy przysługuje gdy w domu są inni domownicy mogący zająć się dzieckiem", "oczekiwane": ["zas:art34"], "musi_zawierac": ["nie przysługuje"]}
+{"pytanie": "z jakiego okresu liczy się podstawę wymiaru zasiłku chorobowego pracownika", "oczekiwane": ["zas:art36:ust1"], "musi_zawierac": ["12 miesięcy"]}
+{"pytanie": "czy podstawa wymiaru zasiłku chorobowego może być niższa niż minimalne wynagrodzenie", "oczekiwane": ["zas:art45:ust1"], "musi_zawierac": ["minimalnego wynagrodzenia", "13,71"]}
+{"pytanie": "jaka jest maksymalna podstawa wymiaru zasiłku chorobowego po ustaniu zatrudnienia", "oczekiwane": ["zas:art46"], "musi_zawierac": ["100 %|100%", "przeciętnego wynagrodzenia"]}
+{"pytanie": "kto wypłaca zasiłek chorobowy pracodawca czy ZUS", "oczekiwane": ["zas:art61:ust1"], "musi_zawierac": ["20 ubezpieczonych"]}
+{"pytanie": "w jakim terminie wypłaca się zasiłek", "oczekiwane": ["zas:art64:ust1"], "musi_zawierac": ["30 dni"]}
+{"pytanie": "po jakim czasie przedawnia się roszczenie o wypłatę zasiłku", "oczekiwane": ["zas:art67:ust1"], "musi_zawierac": ["6 miesięcy"]}
+{"pytanie": "jak długo można dochodzić zasiłku niewypłaconego z winy ZUS lub płatnika", "oczekiwane": ["zas:art67:ust4"], "musi_zawierac": ["3 lat"]}
+{"pytanie": "jak ZUS odzyskuje nienależnie pobrany zasiłek", "oczekiwane": ["zas:art66:ust2"], "musi_zawierac": ["potrąc", "egzekucyj"]}
+{"pytanie": "kto może kontrolować czy zwolnienie lekarskie jest wykorzystywane zgodnie z celem", "oczekiwane": ["zas:art68:ust1"], "musi_zawierac": ["Zakład Ubezpieczeń Społecznych|ZUS"]}
+{"pytanie": "ile dni ma osoba kontrolowana na zastrzeżenia do protokołu kontroli zwolnienia", "oczekiwane": ["zas:art68e:ust4"], "musi_zawierac": ["7 dni"]}
+{"pytanie": "jak długo ZUS przechowuje zaświadczenie lekarskie", "oczekiwane": ["zas:art55b:ust2"], "musi_zawierac": ["3 lat"]}
+{"pytanie": "czy ZUS zwraca koszty dojazdu na badanie kontrolne", "oczekiwane": ["zas:art59:ust13"], "musi_zawierac": ["najtańszym"]}
