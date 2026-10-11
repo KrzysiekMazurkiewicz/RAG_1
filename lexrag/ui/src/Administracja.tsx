@@ -89,6 +89,7 @@ export default function Administracja({ stan, odswiez }: { stan: Stan | null; od
               <tr>
                 <th>kod</th>
                 <th>nazwa</th>
+                <th>wersja</th>
                 <th>przepisów</th>
                 <th>opisy kontekstowe</th>
                 <th>obowiązuje od</th>
@@ -101,6 +102,7 @@ export default function Administracja({ stan, odswiez }: { stan: Stan | null; od
                 <tr key={a.kod}>
                   <td className="id">{a.kod}</td>
                   <td>{a.akt}</td>
+                  <td>{a.wersja || '—'}</td>
                   <td>{a.szukalnych}</td>
                   <td>
                     {a.opisy} / {a.szukalnych}

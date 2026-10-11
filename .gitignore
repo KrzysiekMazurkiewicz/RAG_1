@@ -17,3 +17,4 @@ lexrag/ui/dist/
 # dzienniki działania silnika (pytania użytkowników i opinie) – nie do repozytorium
 lexrag/data/odpowiedzi.jsonl
 lexrag/data/opinie.jsonl
+lexrag/data/slady/

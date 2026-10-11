@@ -46,7 +46,7 @@ def test_stan_bez_indeksu_i_pytanie_409(klient):
 def test_wgranie_ustawy_i_dokumentu_oraz_pytanie(klient):
     with open(os.path.join(DANE, "ustawa_testowa.txt"), "rb") as f:
         r = klient.post("/api/wgraj", files={"plik": ("ustawa.txt", f, "text/plain")},
-                        data={"kod": "test", "akt": "Ustawa testowa", "typ": "ustawa"})
+                        data={"kod": "test", "akt": "Ustawa testowa", "typ": "ustawa", "wersja": "tj. Dz.U. 2026 poz. 1"})
     assert r.status_code == 200, r.text
     z = _czekaj(klient)
     assert z["status"] == "gotowe", z
@@ -63,6 +63,12 @@ def test_wgranie_ustawy_i_dokumentu_oraz_pytanie(klient):
     assert w["trafienia"][0]["id"] == "test:art138:ust3"
     assert klient.get("/api/jednostka/test:art138:ust3").json()["akt_kod"] == "test"
     assert klient.get("/api/jednostka/nie:ma").status_code == 404
+    assert w["status_weryfikacji"] == "" and w["zrodla"] == [] and w["slad_url"] == f"/api/slad/{w['id_odpowiedzi']}"
+    s2 = klient.get(w["slad_url"]).json()                                   # ślad diagnostyczny zapisany na dysku
+    assert s2["kontekst"][0] == "test:art138:ust3" and s2["trafienia"][0]["id"] == "test:art138:ust3"
+    assert klient.get("/api/slad/" + "0" * 32).status_code == 404
+    assert next(a for a in s["indeks"]["akty"] if a["kod"] == "test")["wersja"] == "tj. Dz.U. 2026 poz. 1"
+    assert next(a for a in s["indeks"]["akty"] if a["kod"] == "pnps")["wersja"] == "3.2"
     akt = next(a for a in s["indeks"]["akty"] if a["kod"] == "test")
     assert 0 < akt["opisy"] < akt["szukalnych"]                             # parser opisuje tylko definicje
     assert klient.post("/api/opisz/nie_ma").status_code == 404

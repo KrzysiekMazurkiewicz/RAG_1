@@ -22,6 +22,7 @@ class Jednostka:
     terminy: list[str] = field(default_factory=list)         # terminy zdefiniowane (dla pkt-def)
     obowiazuje_od: Optional[str] = None  # ISO data; None = bez ograniczenia
     obowiazuje_do: Optional[str] = None
+    wersja: str = ""             # etykieta wersji aktu (np. "tj. Dz.U. 2024 poz. 1631"), pokazywana przy odpowiedzi
     szukalny: bool = True        # czy jednostka trafia do indeksu (rodzice z ustępami: nie)
 
     # --- serializacja -----------------------------------------------------

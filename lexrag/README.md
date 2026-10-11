@@ -52,9 +52,11 @@ trafionych ustępów zamiast odpowiedzi. To dobry moment na pierwszą kontrolę 
 ustawa (.pdf/.txt/.html/.docx) ─► wgraj: parse ─► jednostki JSONL (ustęp = jednostka) ─► indeks BM25 + embeddingi
                                                                                                   │
 pytanie ─► [1] analiza + warianty (LLM) ─► [2] BM25 + wektory (RRF) ─► [3] reranker ─► [4] rozszerzenie: cały artykuł,
-           dopytanie, gdy brak danych        retrieve.szukaj            retrieve.rerank   odesłania (1 skok), definicje
+           brak danych = dopytanie OBOK odp.  retrieve.szukaj            retrieve.rerank   odesłania (1 skok), definicje
                                                                                                   │
-   odpowiedź + cytaty ◄── [6b] weryfikacja zdań (LLM) ◄── [6a] kontrola liczb ◄── [5] odpowiedź + id cytatów (LLM) ◄─┘
+   odpowiedź + cytaty ◄── [7] jeden cykl naprawczy ◄── [6b] weryfikacja zdań (LLM) ◄── [6a] bramki ◄── [5] odpowiedź (LLM) ◄─┘
+   + status weryfikacji      (lista błędów → nowa wersja → ponowna kontrola)
+   + ślad diagnostyczny
 ```
 
 | krok | co robi | moduł |
@@ -64,8 +66,12 @@ pytanie ─► [1] analiza + warianty (LLM) ─► [2] BM25 + wektory (RRF) ─�
 | 2 | BM25 na lematach (simplemma) + wektory (`sdadas/mmlw-retrieval-roberta-large`), scalone RRF, filtr na datę obowiązywania | `bm25.py`, `tokenize.py`, `retrieve.py` |
 | 3 | cross-encoder `BAAI/bge-reranker-v2-m3` przestawia top-50 na top-8; opcjonalny próg odmowy | `retrieve.rerank` |
 | 4 | do promptu: trafienia → cały artykuł-rodzic → odesłania → definicje; twardy limit znaków (`LEXRAG_MAX_CTX_CHARS`) | `retrieve.rozszerz` |
-| 1, 5, 6b | trzy wywołania LLM ze **schematem JSON** (dekodowanie ograniczone gramatyką — Ollama `format`, llama.cpp/vLLM `response_format`), tryb myślenia wyłączony | `generate.py`, `llm.py` |
-| 6a | każda liczba w odpowiedzi (lata, kwoty, procenty, terminy, numery artykułów) musi wystąpić w kontekście — także słownie („trzech lat”); zdania z liczbami znikąd wypadają bez pytania modelu | `generate.liczby_bez_pokrycia` |
+| 1, 5, 6b, 7 | trzy do pięciu wywołań LLM ze **schematem JSON** (dekodowanie ograniczone gramatyką — Ollama `format`, llama.cpp/vLLM `response_format`), tryb myślenia wyłączony; tryb przeglądowy (wszystkie sytuacje z kontekstu) **tylko dla pytań hasłowych** – brak danych wg analizy daje zwykłą, warunkową odpowiedź z pytaniem doprecyzowującym obok | `generate.py`, `llm.py` |
+| 6a | każda liczba w odpowiedzi (lata, kwoty, procenty, terminy, numery artykułów) musi wystąpić w kontekście — także słownie („trzech lat”); zdania z liczbami znikąd i zdania będące echem pytania wypadają bez pytania modelu | `generate.liczby_bez_pokrycia`, `powtarza_pytanie` |
+| 6b | weryfikator ocenia każde zdanie osobno: pokrycie w cytowanych przepisach, **logika warunków** („i”/„lub”, negacje, progi przypisane do grup), **odrębna podstawa prawna przedstawiona jako warunek**; a całość: czy dotyczy pytania i czy **rozstrzyga pytanie zamknięte** („czy…” → tak / nie / zależy od…); dostaje oryginalne pytanie (tryb przeglądowy osobną linią, nie dopiskiem do pytania) | `generate.weryfikuj`, `PROMPT_WERYFIKACJA` |
+| 7 | gdy kontrola wskaże błędy (nie na temat, brak rozstrzygnięcia, zdania usunięte), model pisze odpowiedź raz jeszcze z listą błędów i poprzednią wersją; kontrola biegnie ponownie i zostaje lepsza wersja; drugiego cyklu nie ma (`LEXRAG_NAPRAWA=0` wyłącza) | `generate._kontrola`, `PROMPT_NAPRAWA` |
+| status | każda odpowiedź ma `status_weryfikacji`: `zweryfikowana`, `ograniczona` (pokryta, ale nie rozstrzyga pytania), `niezweryfikowana` (awaria kontroli – interfejs pokazuje ostrzeżenie, nie zieloną odpowiedź), `pominieta`, `brak_zrodel`, `odrzucona` | `generate.Odpowiedz` |
+| ślad | pełny ślad diagnostyczny: analiza, zapytania, ranking z wynikami, kontekst, wszystkie wiadomości do modelu i surowe odpowiedzi, werdykty, cykl naprawczy – `ask --slad plik.json`, w WWW `data/slady/<id>.json` i `GET /api/slad/{id}` (ciągi 11 cyfr maskowane) | `llm.rozpocznij_slad`, `Odpowiedz.slad` |
 | eval | recall@k wyszukiwania; pokrycie i precyzja odpowiedzi (cytat trafny + frazy kluczowe) | `evaluate.py` |
 
 ## Model on-premise — co wybrać
@@ -95,6 +101,12 @@ Praktyka, która decyduje o jakości bardziej niż wybór modelu:
   z Saluki: prefill ~16 tok/s, generowanie ~2 tok/s — pełny przebieg (3 wywołania) trwał 12 min.
   Na wolnym sprzęcie użyj `--bez-analizy` (jedno wywołanie mniej), `LEXRAG_MAX_CTX_CHARS=7000`,
   `LEXRAG_TOP_N=6`; na serwerze z kartą te same kroki trwają sekundy.
+* **Apple Silicon**: `LEXRAG_DEVICE=mps` liczy embeddingi i reranker na GPU Maca — wyszukiwanie 1,7 s zamiast
+  48 s na CPU (M2 16 GB); model językowy nadal przez Ollamę lub tunel.
+* **Stan prawny na dzień** filtruje po datach nadanych aktowi przy wgraniu (także rodzice, odesłania i definicje);
+  w indeksie jest jedno brzmienie każdego przepisu, więc data wybiera między wgranymi wersjami aktu (różne kody),
+  nie między brzmieniami ustępu. Odpowiedź pokazuje wersję aktu (`--wersja`, pole „wersja” formularza) i okres
+  obowiązywania z dopiskiem, że system nie potwierdza brzmienia na inną datę.
 
 Inne serwery:
 
@@ -112,7 +124,7 @@ export LEXRAG_LLM_BASE_URL=http://localhost:8080/v1 LEXRAG_LLM_MODEL=model
 |---|---|---|
 | `LEXRAG_LLM_BASE_URL` | `http://localhost:11434/v1` | adres serwera modelu |
 | `LEXRAG_LLM_API` | `auto` | `ollama` (natywne /api/chat) albo `openai` (/v1/chat/completions) |
-| `LEXRAG_DEVICE` | auto | urządzenie embeddingów i rerankera: auto (karta NVIDIA, gdy jest), cpu, cuda |
+| `LEXRAG_DEVICE` | auto | urządzenie embeddingów i rerankera: auto (karta NVIDIA, gdy jest), cpu, cuda, **mps** (Apple Silicon: wyszukiwanie 1,7 s zamiast 48 s na CPU) |
 | `LEXRAG_LLM_MODEL` | puste | nazwa modelu; puste = retrieval-only |
 | `LEXRAG_LLM_MODEL_SMALL` | puste | mniejszy model do kroków 1 i 6b |
 | `LEXRAG_LLM_NUM_CTX` | `12288` | okno kontekstu wysyłane do Ollamy |
@@ -121,6 +133,7 @@ export LEXRAG_LLM_BASE_URL=http://localhost:8080/v1 LEXRAG_LLM_MODEL=model
 | `LEXRAG_LLM_EXTRA_JSON` | puste | dodatkowe pola body, np. `{"chat_template_kwargs": {"enable_thinking": false}}` dla llama.cpp |
 | `LEXRAG_SKIP_ANALYSIS` | `0` | `1` = pomiń krok analizy pytania (to samo co `--bez-analizy`) |
 | `LEXRAG_NUMERIC_CHECK` | `1` | kontrola liczb w odpowiedzi |
+| `LEXRAG_NAPRAWA` | `1` | jeden cykl naprawczy po nieudanej kontroli (`0` = tylko usuwanie zdań) |
 | `LEXRAG_RERANK_THRESHOLD` | `0` | np. `0.05`: odmowa, gdy najlepszy kandydat ma niską trafność wg rerankera |
 | `LEXRAG_MAX_CTX_CHARS` | `12000` | budżet znaków kontekstu dla LLM (~4 tys. tokenów) |
 | `LEXRAG_TOP_N` / `LEXRAG_K_EACH` | `8` / `30` | ile jednostek po reranku / ile kandydatów z każdej metody |
@@ -256,7 +269,11 @@ w tle jeden wspólny indeks ze wszystkich plików `data/units/*.jsonl`. API: `GE
 `POST /api/pytanie {"pytanie", "na_dzien", "analiza"}`, `POST /api/wgraj` (multipart; pole `opisy=1` każe
 modelowi dopisać opisy kontekstowe przed budową indeksu), `POST /api/opisz/{kod}` (opisy dla wgranego już aktu,
 potem przebudowa indeksu; 409 bez modelu), `GET /api/jednostka/{id}`.
-Odpowiedź niesie też `przeglad` (true dla pytań hasłowych) i `dopytanie` (pytanie doprecyzowujące).
+Odpowiedź niesie też `przeglad` (true dla pytań hasłowych), `dopytanie` (pytanie doprecyzowujące), `status_weryfikacji`,
+`naprawa` (true, gdy to druga wersja po cyklu naprawczym), `zrodla` (akty cytowane: wersja i okres obowiązywania)
+i `slad_url` (`GET /api/slad/{id}`: pełny ślad diagnostyczny tej odpowiedzi). Interfejs pokazuje status jako znacznik:
+odpowiedź `niezweryfikowana` ma czerwone ostrzeżenie i jest szkicem do sprawdzenia, `ograniczona` ma uwagę, że nie
+rozstrzyga pytania.
 Pytanie bez `na_dzien` liczy się na dziś: gdy w indeksie są dwie wersje aktu (różne kody, okresy obowiązywania
 `--obowiazuje-od/--obowiazuje-do`), odpowiada bieżąca, a z datą ta, która obowiązywała w tym dniu.
 

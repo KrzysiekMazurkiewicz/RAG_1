@@ -25,7 +25,7 @@ from typing import Optional
 
 from .config import KONFIG
 from .index import Indeks
-from .llm import BrakLLM, czat_json, llm_dostepny
+from .llm import BrakLLM, czat_json, llm_dostepny, rozpocznij_slad, zakoncz_slad
 from .models import Jednostka
 from .retrieve import Trafienie, rozszerz, szukaj_pelnie
 
@@ -65,18 +65,23 @@ SCHEMA_WERYFIKACJA = {
             "type": "array",
             "items": {
                 "type": "object",
-                "properties": {"nr": {"type": "integer"}, "pokryte": {"type": "boolean"}, "id": {"type": "string"}},
-                "required": ["nr", "pokryte", "id"],
+                "properties": {"nr": {"type": "integer"}, "pokryte": {"type": "boolean"}, "id": {"type": "string"},
+                               "warunki_poprawne": {"type": "boolean"},
+                               "odrebna_podstawa_jako_warunek": {"type": "boolean"}},
+                "required": ["nr", "pokryte", "id", "warunki_poprawne", "odrebna_podstawa_jako_warunek"],
             },
         },
         "odpowiada_na_pytanie": {"type": "boolean"},
+        "odpowiada_wprost": {"type": "boolean"},
+        "bledy": {"type": "array", "items": {"type": "string"}},
     },
-    "required": ["zdania", "odpowiada_na_pytanie"],
+    "required": ["zdania", "odpowiada_na_pytanie", "odpowiada_wprost", "bledy"],
 }
 SCHEMA_WERYFIKACJA_ZDANIE = {
     "type": "object",
-    "properties": {"pokryte": {"type": "boolean"}, "id": {"type": "string"}},
-    "required": ["pokryte", "id"],
+    "properties": {"pokryte": {"type": "boolean"}, "id": {"type": "string"},
+                   "warunki_poprawne": {"type": "boolean"}, "odrebna_podstawa_jako_warunek": {"type": "boolean"}},
+    "required": ["pokryte", "id", "warunki_poprawne", "odrebna_podstawa_jako_warunek"],
 }
 
 PROMPT_ANALIZA = """Pytanie użytkownika:
@@ -84,7 +89,7 @@ PROMPT_ANALIZA = """Pytanie użytkownika:
 
 Zadanie:
 1. Zaproponuj 3–5 wariantów zapytania do wyszukiwarki przepisów, w języku ustawy i urzędu
-   (terminologia prawnicza, synonimy, numery artykułów, jeśli się ich domyślasz).
+   (terminologia prawnicza, synonimy, nazwa instytucji prawnej i zagadnienia; bez zgadywania numerów artykułów).
 2. Oceń, czy do wskazania właściwego przepisu brakuje danych o sytuacji osoby
    (np. data urodzenia, płeć, staż, rodzaj pracy, okres, kwota). Dopytuj TYLKO wtedy, gdy bez
    tej informacji nie da się wskazać przepisu ani odpowiedzieć warunkowo ("jeśli X, to …").
@@ -140,23 +145,39 @@ PROMPT_WERYFIKACJA = """Sprawdzasz odpowiedź asystenta na pytanie użytkownika.
 
 Pytanie użytkownika:
 {pytanie}
-
+{tryb}
 Fragmenty przepisów:
 {fragmenty}
 
 Zdania odpowiedzi (numerowane):
 {zdania}
 
-Zadanie 1 – dla każdego zdania: "pokryte" = true, gdy treść zdania wynika wprost z fragmentów
-(parafraza jest w porządku). "pokryte" = false, gdy zdanie dodaje fakty, liczby, terminy, warunki lub
-wyjątki, których we fragmentach nie ma, albo przeinacza ich sens. Zdania czysto porządkujące
-("Poniżej warunki:") traktuj jako pokryte. "id" = id fragmentu, który pokrywa zdanie (albo "").
-Zadanie 2 – "odpowiada_na_pytanie": true, gdy odpowiedź jako całość dotyczy tego, o co pytano;
-false, gdy mówi o innej kwestii, innym świadczeniu, innym warunku lub innym terminie niż w pytaniu
-(nawet jeśli każde zdanie ma pokrycie w przepisach).
+Zadanie 1 – dla każdego zdania oceń osobno:
+- "pokryte" = true, gdy treść zdania wynika wprost z fragmentów (parafraza jest w porządku); false, gdy zdanie
+  dodaje fakty, liczby, terminy, warunki lub wyjątki, których we fragmentach nie ma, albo przeinacza ich sens.
+  Zdania czysto porządkujące ("Poniżej warunki:") traktuj jako pokryte.
+- "warunki_poprawne" = true, gdy zdanie zachowuje logikę przepisu: spójniki "i" / "lub" / "albo", negacje oraz
+  progi (lata, wiek, kwoty) przypisane do właściwej grupy osób i właściwego warunku; false, gdy warunek
+  alternatywny stał się łącznym (albo odwrotnie), próg trafił do innej grupy albo zniknęła negacja.
+  Zdanie bez warunków: true.
+- "odrebna_podstawa_jako_warunek" = true TYLKO wtedy, gdy zdanie przedstawia warunek z innego przepisu (innej
+  podstawy prawnej) jako warunek konieczny tej podstawy, której dotyczy pytanie, np. każe potwierdzić prawo do
+  renty z art. 31, choć pytanie dotyczy art. 29. Samo wspomnienie innego przepisu jako osobnej możliwości: false.
+- "id" = id fragmentu, który pokrywa zdanie (albo "").
+Zadanie 2 – ocena całości:
+- "odpowiada_na_pytanie": true, gdy odpowiedź jako całość dotyczy tego, o co pytano; false, gdy mówi o innej
+  kwestii, innym świadczeniu, innym warunku lub innym terminie niż w pytaniu (nawet jeśli każde zdanie ma
+  pokrycie w przepisach).
+- "odpowiada_wprost": gdy pytanie jest zamknięte (zaczyna się od "czy", pyta o tak / nie), true tylko wtedy, gdy
+  odpowiedź rozstrzyga je wprost (tak / nie / zależy od wskazanego warunku) na podstawie fragmentów; gdy pytanie
+  nie jest zamknięte albo odpowiedź jest przeglądowa na pytanie hasłowe, true.
+- "bledy": lista konkretnych błędów do poprawienia, po jednym na pozycję, z numerem zdania; pusta, gdy ich nie ma.
 
-Zwróć JSON: {{"zdania": [{{"nr": 1, "pokryte": true, "id": "..."}}], "odpowiada_na_pytanie": true}}
+Zwróć JSON: {{"zdania": [{{"nr": 1, "pokryte": true, "id": "...", "warunki_poprawne": true, "odrebna_podstawa_jako_warunek": false}}], "odpowiada_na_pytanie": true, "odpowiada_wprost": true, "bledy": []}}
 """
+
+TRYB_PRZEGLADOWY_INFO = ("Tryb odpowiedzi: przeglądowa, bo pytanie jest hasłowe (kilka słów, bez pytania); odpowiedź omawiająca "
+                         "to świadczenie lub instytucję z kilku stron jest wtedy na temat.")
 
 PROMPT_WERYFIKACJA_ZDANIE = """Sprawdzasz jedno zdanie odpowiedzi asystenta.
 
@@ -168,9 +189,25 @@ Zdanie:
 
 "pokryte" = true, gdy treść zdania wynika wprost z fragmentów (parafraza jest w porządku).
 "pokryte" = false, gdy zdanie dodaje fakty, liczby, terminy, warunki lub wyjątki, których we fragmentach
-nie ma, albo przeinacza ich sens. "id" = id fragmentu, który pokrywa zdanie (albo "").
+nie ma, albo przeinacza ich sens. "warunki_poprawne" = false, gdy zdanie zmienia spójniki "i" / "lub",
+negacje albo przypisanie progów do grup osób. "odrebna_podstawa_jako_warunek" = true tylko, gdy zdanie
+przedstawia warunek z innego przepisu jako warunek konieczny podstawy, której dotyczy pytanie.
+"id" = id fragmentu, który pokrywa zdanie (albo "").
 
-Zwróć JSON: {{"pokryte": true, "id": "..."}}
+Zwróć JSON: {{"pokryte": true, "id": "...", "warunki_poprawne": true, "odrebna_podstawa_jako_warunek": false}}
+"""
+
+PROMPT_NAPRAWA = """
+
+Poprzednia wersja odpowiedzi nie przeszła kontroli. Poprzednia odpowiedź:
+{poprzednia}
+
+Błędy wykazane przez kontrolę:
+{bledy}
+
+Napisz odpowiedź od nowa, usuwając te błędy: odpowiadaj wprost na pytanie (przy pytaniu "czy" zacznij od tak / nie /
+zależy od…), stosuj przepis właściwy dla sytuacji opisanej w pytaniu i nie dodawaj warunków z innych podstaw
+prawnych; inne przepisy co najwyżej wspomnij osobno jako inną możliwość. Zdania, które były poprawne, zachowaj.
 """
 
 
@@ -187,7 +224,10 @@ class Odpowiedz:
     uwagi: str = ""
     czasy: dict = field(default_factory=dict)   # sekundy na krok
     przeglad: bool = False                      # odpowiedź przeglądowa (pytanie hasłowe albo brak danych o sytuacji)
-    dopytanie: str = ""                         # pytanie doprecyzowujące dołączone do odpowiedzi przeglądowej
+    dopytanie: str = ""                         # pytanie doprecyzowujące dołączone do odpowiedzi (z analizy)
+    status_weryfikacji: str = ""                # zweryfikowana | niezweryfikowana | pominieta | ograniczona | brak_zrodel | odrzucona
+    naprawa: bool = False                       # odpowiedź pochodzi z cyklu naprawczego (druga wersja po liście błędów)
+    slad: dict = field(default_factory=dict)    # pełny ślad diagnostyczny: analiza, ranking, kontekst, surowe wyjścia, werdykty
 
 
 def _fragmenty_do_promptu(jednostki: list[Jednostka]) -> str:
@@ -344,15 +384,22 @@ def analizuj_pytanie(pytanie: str) -> dict:
     model = KONFIG.llm_model_maly or None
     return czat_json([{"role": "system", "content": SYSTEM},
                       {"role": "user", "content": PROMPT_ANALIZA.format(pytanie=pytanie)}],
-                     model=model, max_tokens=500, schema=SCHEMA_ANALIZA)
+                     model=model, max_tokens=500, schema=SCHEMA_ANALIZA, etykieta="analiza")
 
 
-def generuj(pytanie: str, kontekst: list[Jednostka], przeglad: bool = False) -> dict:
+def generuj(pytanie: str, kontekst: list[Jednostka], przeglad: bool = False,
+            naprawa: Optional[dict] = None) -> dict:
+    """Odpowiedź z id cytatów; `przeglad` dokleja polecenie przeglądowe (pytania hasłowe), `naprawa`
+    ({"poprzednia": tekst, "bledy": [...]}) dokleja poprzednią wersję i listę błędów z kontroli."""
     tresc = PROMPT_ODPOWIEDZ.format(pytanie=pytanie, fragmenty=_fragmenty_do_promptu(kontekst))
     if przeglad:
         tresc += PROMPT_PRZEGLAD
+    if naprawa:
+        tresc += PROMPT_NAPRAWA.format(poprzednia=naprawa.get("poprzednia", ""),
+                                       bledy="\n".join(f"- {b}" for b in naprawa.get("bledy", [])) or "- (brak listy)")
     return czat_json([{"role": "system", "content": SYSTEM}, {"role": "user", "content": tresc}],
-                     max_tokens=1600 if przeglad else 1200, schema=SCHEMA_ODPOWIEDZ)
+                     max_tokens=1600 if (przeglad or naprawa) else 1200, schema=SCHEMA_ODPOWIEDZ,
+                     etykieta="naprawa" if naprawa else "odpowiedz")
 
 
 def _schema_weryfikacji(n: int) -> dict:
@@ -363,43 +410,63 @@ def _schema_weryfikacji(n: int) -> dict:
     return sch
 
 
-def weryfikuj(zdania: list[str], kontekst: list[Jednostka], pytanie: str = "") -> tuple[list[str], list[str], bool]:
-    """Zwraca (zdania pokryte, zdania usunięte, czy odpowiedź dotyczy pytania) wg osobnego przebiegu LLM.
-    Każde zdanie dostaje werdykt: z przebiegu zbiorczego, a gdy go tam brakuje – z osobnego pytania o to zdanie."""
+def weryfikuj(zdania: list[str], kontekst: list[Jednostka], pytanie: str = "", przeglad: bool = False) -> dict:
+    """Osobny przebieg LLM: werdykt dla każdego zdania (pokrycie, logika warunków, odrębna podstawa jako warunek)
+    i dla całości (na temat, rozstrzyga wprost, lista błędów). Zdania bez werdyktu w przebiegu zbiorczym są
+    dopytywane osobno. Zwraca słownik: zostaja, usuniete [(zdanie, powód)], odpowiada_na_pytanie,
+    odpowiada_wprost, bledy, surowe, fragmenty."""
     if not zdania or not kontekst:
-        return [], list(zdania), True
+        return dict(zostaja=[], usuniete=[(z, "brak kontekstu do weryfikacji") for z in zdania],
+                    odpowiada_na_pytanie=True, odpowiada_wprost=True, bledy=[], surowe=None,
+                    fragmenty=[j.id for j in kontekst])
     model = KONFIG.llm_model_maly or None
     fragmenty = _fragmenty_do_promptu(kontekst)
     numerowane = "\n".join(f"{i + 1}. {z}" for i, z in enumerate(zdania))
     wynik = czat_json([{"role": "system", "content": SYSTEM},
                        {"role": "user", "content": PROMPT_WERYFIKACJA.format(
-                           pytanie=pytanie or "(brak)", fragmenty=fragmenty, zdania=numerowane)}],
-                      model=model, max_tokens=800, schema=_schema_weryfikacji(len(zdania)))
+                           pytanie=pytanie or "(brak)", tryb=(TRYB_PRZEGLADOWY_INFO if przeglad else ""),
+                           fragmenty=fragmenty, zdania=numerowane)}],
+                      model=model, max_tokens=1000, schema=_schema_weryfikacji(len(zdania)), etykieta="weryfikacja")
     wpisy = wynik.get("zdania", [])
     wpisy = [w for w in wpisy if isinstance(w, dict)] if isinstance(wpisy, list) else []
-    pokryte: dict[int, bool] = {}
+    werdykty: dict[int, dict] = {}
     if len(wpisy) == len(zdania):                       # komplet – ufamy kolejności, nie numeracji modelu
-        pokryte = {i + 1: bool(w.get("pokryte")) for i, w in enumerate(wpisy)}
+        werdykty = {i + 1: w for i, w in enumerate(wpisy)}
     else:
         for w in wpisy:
             try:
                 nr = int(w["nr"])
             except (KeyError, ValueError, TypeError):
                 continue
-            if 1 <= nr <= len(zdania) and nr not in pokryte:
-                pokryte[nr] = bool(w.get("pokryte"))
+            if 1 <= nr <= len(zdania) and nr not in werdykty:
+                werdykty[nr] = w
     for i, z in enumerate(zdania, start=1):              # brakujące werdykty: zdanie po zdaniu
-        if i in pokryte:
+        if i in werdykty:
             continue
         log.info("Weryfikacja: brak werdyktu dla zdania %d – pytam osobno.", i)
-        w1 = czat_json([{"role": "system", "content": SYSTEM},
-                        {"role": "user", "content": PROMPT_WERYFIKACJA_ZDANIE.format(fragmenty=fragmenty, zdanie=z)}],
-                       model=model, max_tokens=200, schema=SCHEMA_WERYFIKACJA_ZDANIE)
-        pokryte[i] = bool(w1.get("pokryte"))
-    zostaja = [z for i, z in enumerate(zdania) if pokryte.get(i + 1, False)]
-    usuniete = [z for i, z in enumerate(zdania) if not pokryte.get(i + 1, False)]
-    na_temat = wynik.get("odpowiada_na_pytanie", True)
-    return zostaja, usuniete, (True if na_temat is None else bool(na_temat))
+        werdykty[i] = czat_json([{"role": "system", "content": SYSTEM},
+                                 {"role": "user", "content": PROMPT_WERYFIKACJA_ZDANIE.format(fragmenty=fragmenty, zdanie=z)}],
+                                model=model, max_tokens=200, schema=SCHEMA_WERYFIKACJA_ZDANIE, etykieta="weryfikacja_zdania")
+    zostaja: list[str] = []
+    usuniete: list[tuple[str, str]] = []
+    for i, z in enumerate(zdania, start=1):
+        w = werdykty.get(i) or {}
+        if not w.get("pokryte"):
+            usuniete.append((z, "bez pokrycia wg weryfikacji"))
+        elif w.get("warunki_poprawne") is False:
+            usuniete.append((z, "warunki przeinaczone wg weryfikacji"))
+        elif w.get("odrebna_podstawa_jako_warunek") is True:
+            usuniete.append((z, "odrębna podstawa prawna przedstawiona jako warunek"))
+        else:
+            zostaja.append(z)
+    na_temat = wynik.get("odpowiada_na_pytanie")
+    wprost = wynik.get("odpowiada_wprost")
+    bledy = wynik.get("bledy") or []
+    return dict(zostaja=zostaja, usuniete=usuniete,
+                odpowiada_na_pytanie=True if na_temat is None else bool(na_temat),
+                odpowiada_wprost=True if wprost is None else bool(wprost),
+                bledy=[b.strip() for b in bledy if isinstance(b, str) and b.strip()] if isinstance(bledy, list) else [],
+                surowe=wynik, fragmenty=[j.id for j in kontekst])
 
 
 def _z_rodzicami(indeks: Indeks, jednostki: list[Jednostka]) -> list[Jednostka]:
@@ -413,89 +480,19 @@ def _z_rodzicami(indeks: Indeks, jednostki: list[Jednostka]) -> list[Jednostka]:
     return out
 
 
-# --- pełny przebieg -----------------------------------------------------------------------
-def odpowiedz(indeks: Indeks, pytanie: str, na_dzien: Optional[str] = None,
-              uzyj_emb: bool = True, uzyj_reranker: bool = True,
-              dopytuj: bool = True, weryfikacja: bool = True,
-              top_n: Optional[int] = None, uzyj_llm: bool = True,
-              analiza: Optional[bool] = None) -> Odpowiedz:
-    """Pełny przebieg. Bez skonfigurowanego LLM zwraca same trafienia (retrieval-only)."""
-    czasy: dict[str, float] = {}
-    t0 = time.time()
-    if not uzyj_llm or not llm_dostepny():
-        traf = szukaj_pelnie(indeks, pytanie, na_dzien=na_dzien, uzyj_emb=uzyj_emb,
-                             uzyj_reranker=uzyj_reranker, top_n=top_n)
-        czasy["szukanie"] = round(time.time() - t0, 1)
-        return Odpowiedz(tryb="retrieval-only", trafienia=traf, kontekst=rozszerz(indeks, traf), czasy=czasy)
-
-    # krok 1 – analiza pytania i warianty (pomijalny: --bez-analizy / LEXRAG_SKIP_ANALYSIS=1)
-    warianty: list[str] = []
-    brakujace: list[str] = []
-    pyt_dop = ""
-    przeglad = pytanie_haslowe(pytanie)
-    if analiza is None:
-        analiza = not KONFIG.pomin_analize
-    if analiza:
-        try:
-            a = analizuj_pytanie(pytanie)
-            warianty = [w.strip() for w in a.get("warianty", []) if isinstance(w, str) and w.strip()][:5]
-            brakujace = [b.strip() for b in a.get("brakujace_parametry", []) if isinstance(b, str) and b.strip()]
-            pyt_dop = (a.get("pytanie_doprecyzowujace") or "").strip()
-            czasy["analiza"] = round(time.time() - t0, 1)
-            if brakujace and pyt_dop:
-                przeglad = True   # zamiast samego dopytania: odpowiedź przeglądowa z dopytaniem na końcu
-        except (BrakLLM, ValueError) as e:
-            log.warning("Analiza pytania nieudana (%s) – szukam samym pytaniem.", e)
-            czasy["analiza"] = round(time.time() - t0, 1)
-
-    # kroki 2–4 – wyszukiwanie i kontekst
-    t1 = time.time()
-    traf = szukaj_pelnie(indeks, pytanie, warianty, na_dzien=na_dzien,
-                         uzyj_emb=uzyj_emb, uzyj_reranker=uzyj_reranker, top_n=top_n)
-    kontekst = rozszerz(indeks, traf)
-    czasy["szukanie"] = round(time.time() - t1, 1)
-    if not kontekst:
-        return Odpowiedz(tryb="odmowa", tekst="Nie znaleziono przepisów pasujących do pytania.",
-                         warianty=warianty, trafienia=traf, czasy=czasy)
-    if KONFIG.prog_rerank > 0 and traf and traf[0].zrodlo == "rerank":
-        p = _sigmoid(traf[0].wynik)
-        if p < KONFIG.prog_rerank:
-            return Odpowiedz(tryb="odmowa", warianty=warianty, trafienia=traf, kontekst=kontekst, czasy=czasy,
-                             tekst=f"Nie znaleziono przepisu pasującego do pytania (najlepszy kandydat: "
-                                   f"{p:.0%} trafności, próg {KONFIG.prog_rerank:.0%}).")
-
-    # krok 5 – odpowiedź z id cytatów
-    t2 = time.time()
-    try:
-        g = generuj(pytanie, kontekst, przeglad=przeglad)
-    except (BrakLLM, ValueError) as e:
-        return Odpowiedz(tryb="blad", tekst=f"Błąd LLM: {e}", trafienia=traf, kontekst=kontekst, czasy=czasy)
-    czasy["odpowiedz"] = round(time.time() - t2, 1)
-
+# --- kontrola jednej wersji odpowiedzi: bramki deterministyczne + weryfikacja LLM ----------
+def _wynik_generatora(indeks: Indeks, g: dict, kontekst: list[Jednostka]) -> tuple[str, list[Jednostka], str]:
     tekst = (g.get("odpowiedz") or "").strip()
     surowe = g.get("cytowane_id") or []
     cyt_id = odzyskaj_cytaty(tekst, surowe if isinstance(surowe, list) else [surowe], kontekst)
-    cytaty = [indeks.jednostki[c] for c in cyt_id]
-    uwagi = (g.get("uwagi") or "").strip()
-    wspolne = dict(warianty=warianty, trafienia=traf, kontekst=kontekst, cytaty=cytaty, czasy=czasy,
-                   przeglad=przeglad, brakujace_parametry=brakujace, dopytanie=(pyt_dop if dopytuj else ""))
+    return tekst, [indeks.jednostki[c] for c in cyt_id], (g.get("uwagi") or "").strip()
 
-    def _odmowa(**kw) -> Odpowiedz:
-        """Odmowa; gdy analiza przygotowała dopytanie, oddajemy je zamiast samej odmowy (powód trafia do uwag)."""
-        if dopytuj and pyt_dop:
-            kw["uwagi"] = " ".join(x for x in (kw.get("tekst", ""), kw.get("uwagi", "")) if x).strip()
-            kw["tekst"] = pyt_dop
-            return Odpowiedz(**kw, tryb="dopytanie")
-        return Odpowiedz(**kw, tryb="odmowa")
-    if g.get("brak_pokrycia") or not tekst:
-        return _odmowa( uwagi=uwagi, **wspolne,
-                         tekst="Dostarczone przepisy nie pozwalają odpowiedzieć jednoznacznie. " + uwagi)
-    if not cytaty:
-        return _odmowa( uwagi=uwagi, **wspolne,
-                         tekst="Model nie wskazał podstawy prawnej spośród dostarczonych fragmentów – "
-                              "sprawa wymaga referenta.")
 
-    # krok 6a – kontrole deterministyczne: powtórzenie pytania, liczby spoza przepisów
+def _kontrola(indeks: Indeks, pytanie: str, tekst: str, cytaty: list[Jednostka], kontekst: list[Jednostka],
+              przeglad: bool, weryfikacja: bool) -> dict:
+    """Bramki deterministyczne (echo pytania, liczby spoza kontekstu) i weryfikacja LLM jednego tekstu.
+    Zwraca: zdania (zostają), usuniete (z powodem), na_temat, wprost, bledy, status, powody (lista do naprawy),
+    potrzebna_naprawa, wynik_kontroli (im mniej, tym lepiej)."""
     usuniete: list[str] = []
     zdania: list[str] = []
     for z in _zdania(tekst):
@@ -513,27 +510,183 @@ def odpowiedz(indeks: Indeks, pytanie: str, na_dzien: Optional[str] = None,
             else:
                 zostaja.append(z)
         zdania = zostaja
-
-    # krok 6b – weryfikacja zdanie po zdaniu (LLM)
+    k: dict = {"zdania_wejscie": list(zdania), "zdania": zdania, "usuniete": usuniete, "na_temat": True,
+               "wprost": True, "bledy": [], "status": "pominieta", "surowe": None, "fragmenty": [],
+               "usuniete_weryfikacja": 0}
     if weryfikacja and zdania:
-        t3 = time.time()
         try:
-            pyt_wer = pytanie + (" [pytanie hasłowe – odpowiedź przeglądowa omawiająca to świadczenie lub"
-                                 " instytucję z kilku stron dotyczy pytania]" if przeglad else "")
-            zdania, usun_llm, na_temat = weryfikuj(zdania, _z_rodzicami(indeks, cytaty), pyt_wer)
-            usuniete += [f"{z}  [bez pokrycia wg weryfikacji]" for z in usun_llm]
-            if not na_temat:
-                czasy["weryfikacja"] = round(time.time() - t3, 1)
-                return _odmowa( uwagi=uwagi, **wspolne,
-                                 zdania_usuniete=usuniete + [f"{z}  [nie na temat pytania]" for z in zdania],
-                                 tekst="Odpowiedź modelu dotyczyła innej kwestii niż pytanie – sprawa wymaga referenta.")
+            w = weryfikuj(zdania, _z_rodzicami(indeks, cytaty), pytanie, przeglad=przeglad)
+            k.update(zdania=w["zostaja"], na_temat=w["odpowiada_na_pytanie"], wprost=w["odpowiada_wprost"],
+                     bledy=w["bledy"], status="zweryfikowana", surowe=w["surowe"], fragmenty=w["fragmenty"],
+                     usuniete_weryfikacja=len(w["usuniete"]))
+            k["usuniete"] = usuniete + [f"{z}  [{powod}]" for z, powod in w["usuniete"]]
         except (BrakLLM, ValueError) as e:
             log.warning("Weryfikacja nieudana (%s) – odpowiedź oznaczona jako niezweryfikowana.", e)
-            uwagi = (uwagi + " NIEZWERYFIKOWANA: " + str(e)).strip()
-        czasy["weryfikacja"] = round(time.time() - t3, 1)
+            k.update(status="niezweryfikowana", blad=str(e))
+    powody = list(k["bledy"])
+    if not k["na_temat"]:
+        powody.append("odpowiedź dotyczy innej kwestii niż pytanie")
+    if not k["wprost"]:
+        powody.append("odpowiedź nie rozstrzyga pytania wprost (tak / nie / zależy od wskazanego warunku)")
+    powody += [f"zdanie usunięte przez kontrolę: {u}" for u in k["usuniete"]]
+    k["powody"] = powody
+    k["potrzebna_naprawa"] = bool(weryfikacja) and k["status"] != "niezweryfikowana" and (
+        not k["na_temat"] or not k["wprost"] or k["usuniete_weryfikacja"] > 0 or not k["zdania"])
+    k["wynik_kontroli"] = ((0 if k["na_temat"] else 10) + (0 if k["wprost"] else 5) + len(k["usuniete"])
+                           + (5 if not k["zdania"] else 0))
+    return k
 
-    tekst = " ".join(zdania).strip()
+
+def _slad_kontroli(k: dict) -> dict:
+    return {kk: k.get(kk) for kk in ("zdania_wejscie", "zdania", "usuniete", "na_temat", "wprost", "bledy", "status",
+                                     "surowe", "fragmenty", "powody", "blad", "wynik_kontroli")}
+
+
+def _slad_trafien(traf: list[Trafienie]) -> list[dict]:
+    return [{"id": t.id, "wynik": round(float(t.wynik), 4), "zrodlo": t.zrodlo} for t in traf]
+
+
+# --- pełny przebieg -----------------------------------------------------------------------
+def odpowiedz(indeks: Indeks, pytanie: str, na_dzien: Optional[str] = None,
+              uzyj_emb: bool = True, uzyj_reranker: bool = True,
+              dopytuj: bool = True, weryfikacja: bool = True,
+              top_n: Optional[int] = None, uzyj_llm: bool = True,
+              analiza: Optional[bool] = None, naprawa: Optional[bool] = None) -> Odpowiedz:
+    """Pełny przebieg. Bez skonfigurowanego LLM zwraca same trafienia (retrieval-only).
+    Pole `slad` wyniku ma komplet danych diagnostycznych: analizę, zapytania, ranking z wynikami, kontekst,
+    surowe wyjścia modelu, werdykty kontroli i wszystkie wywołania modelu (wiadomości i odpowiedzi)."""
+    czasy: dict[str, float] = {}
+    slad: dict = {"pytanie": pytanie, "na_dzien": na_dzien, "model": KONFIG.llm_model}
+    t0 = time.time()
+    if not uzyj_llm or not llm_dostepny():
+        traf = szukaj_pelnie(indeks, pytanie, na_dzien=na_dzien, uzyj_emb=uzyj_emb,
+                             uzyj_reranker=uzyj_reranker, top_n=top_n)
+        kontekst = rozszerz(indeks, traf, na_dzien=na_dzien)
+        czasy["szukanie"] = round(time.time() - t0, 1)
+        slad.update(zapytania=[pytanie], trafienia=_slad_trafien(traf), kontekst=[j.id for j in kontekst])
+        return Odpowiedz(tryb="retrieval-only", trafienia=traf, kontekst=kontekst, czasy=czasy, slad=slad)
+    rozpocznij_slad()
+    try:
+        return _odpowiedz_llm(indeks, pytanie, na_dzien, uzyj_emb, uzyj_reranker, dopytuj, weryfikacja, top_n,
+                              analiza, naprawa, czasy, slad, t0)
+    finally:
+        slad["wywolania"] = zakoncz_slad()
+
+
+def _odpowiedz_llm(indeks: Indeks, pytanie: str, na_dzien: Optional[str], uzyj_emb: bool, uzyj_reranker: bool,
+                   dopytuj: bool, weryfikacja: bool, top_n: Optional[int], analiza: Optional[bool],
+                   naprawa: Optional[bool], czasy: dict, slad: dict, t0: float) -> Odpowiedz:
+    # krok 1 – analiza pytania i warianty (pomijalny: --bez-analizy / LEXRAG_SKIP_ANALYSIS=1).
+    # Tryb przeglądowy włącza WYŁĄCZNIE pytanie hasłowe; brak danych wg analizy daje zwykłą odpowiedź
+    # (warunkową, zasada 3 promptu) z pytaniem doprecyzowującym obok niej.
+    warianty: list[str] = []
+    brakujace: list[str] = []
+    pyt_dop = ""
+    przeglad = pytanie_haslowe(pytanie)
+    if analiza is None:
+        analiza = not KONFIG.pomin_analize
+    if naprawa is None:
+        naprawa = KONFIG.naprawa
+    if analiza:
+        try:
+            a = analizuj_pytanie(pytanie)
+            warianty = [w.strip() for w in a.get("warianty", []) if isinstance(w, str) and w.strip()][:5]
+            brakujace = [b.strip() for b in a.get("brakujace_parametry", []) if isinstance(b, str) and b.strip()]
+            pyt_dop = (a.get("pytanie_doprecyzowujace") or "").strip()
+            slad["analiza"] = a
+        except (BrakLLM, ValueError) as e:
+            log.warning("Analiza pytania nieudana (%s) – szukam samym pytaniem.", e)
+            slad["analiza"] = {"blad": str(e)}
+        czasy["analiza"] = round(time.time() - t0, 1)
+
+    # kroki 2–4 – wyszukiwanie i kontekst
+    t1 = time.time()
+    traf = szukaj_pelnie(indeks, pytanie, warianty, na_dzien=na_dzien,
+                         uzyj_emb=uzyj_emb, uzyj_reranker=uzyj_reranker, top_n=top_n)
+    kontekst = rozszerz(indeks, traf, na_dzien=na_dzien)
+    czasy["szukanie"] = round(time.time() - t1, 1)
+    slad.update(zapytania=[pytanie] + warianty, trafienia=_slad_trafien(traf),
+                kontekst=[j.id for j in kontekst], przeglad=przeglad)
+    wspolne = dict(warianty=warianty, trafienia=traf, kontekst=kontekst, czasy=czasy, przeglad=przeglad,
+                   brakujace_parametry=brakujace, dopytanie=(pyt_dop if dopytuj else ""), slad=slad)
+
+    def _odmowa(status: str, **kw) -> Odpowiedz:
+        """Odmowa; gdy analiza przygotowała dopytanie, oddajemy je zamiast samej odmowy (powód trafia do uwag)."""
+        kw.setdefault("status_weryfikacji", status)
+        if dopytuj and pyt_dop:
+            kw["uwagi"] = " ".join(x for x in (kw.get("tekst", ""), kw.get("uwagi", "")) if x).strip()
+            kw["tekst"] = pyt_dop
+            return Odpowiedz(**kw, tryb="dopytanie")
+        return Odpowiedz(**kw, tryb="odmowa")
+
+    if not kontekst:
+        return _odmowa("brak_zrodel", tekst="Nie znaleziono przepisów pasujących do pytania.", **wspolne)
+    if KONFIG.prog_rerank > 0 and traf and traf[0].zrodlo == "rerank":
+        p = _sigmoid(traf[0].wynik)
+        if p < KONFIG.prog_rerank:
+            return _odmowa("brak_zrodel", **wspolne,
+                           tekst=f"Nie znaleziono przepisu pasującego do pytania (najlepszy kandydat: "
+                                 f"{p:.0%} trafności, próg {KONFIG.prog_rerank:.0%}).")
+
+    # krok 5 – odpowiedź z id cytatów
+    t2 = time.time()
+    try:
+        g = generuj(pytanie, kontekst, przeglad=przeglad)
+    except (BrakLLM, ValueError) as e:
+        return Odpowiedz(tryb="blad", tekst=f"Błąd LLM: {e}", **wspolne)
+    czasy["odpowiedz"] = round(time.time() - t2, 1)
+    slad["generator"] = g
+    tekst, cytaty, uwagi = _wynik_generatora(indeks, g, kontekst)
+    if g.get("brak_pokrycia") or not tekst:
+        return _odmowa("brak_zrodel", uwagi=uwagi, **wspolne,
+                       tekst="Dostarczone przepisy nie pozwalają odpowiedzieć jednoznacznie. " + uwagi)
+    if not cytaty:
+        return _odmowa("brak_zrodel", uwagi=uwagi, **wspolne,
+                       tekst="Model nie wskazał podstawy prawnej spośród dostarczonych fragmentów – "
+                             "sprawa wymaga referenta.")
+
+    # krok 6 – bramki deterministyczne i weryfikacja zdanie po zdaniu
+    t3 = time.time()
+    k = _kontrola(indeks, pytanie, tekst, cytaty, kontekst, przeglad, weryfikacja)
+    czasy["weryfikacja"] = round(time.time() - t3, 1)
+    slad["kontrola"] = [_slad_kontroli(k)]
+
+    # krok 7 – jeden cykl naprawczy: lista błędów z kontroli → nowa wersja → ponowna kontrola
+    naprawiono = False
+    if naprawa and k["potrzebna_naprawa"]:
+        t4 = time.time()
+        try:
+            g2 = generuj(pytanie, kontekst, przeglad=przeglad, naprawa={"poprzednia": tekst, "bledy": k["powody"]})
+            slad["naprawa"] = {"powody": k["powody"], "generator": g2}
+            tekst2, cytaty2, uwagi2 = _wynik_generatora(indeks, g2, kontekst)
+            if tekst2 and cytaty2 and not g2.get("brak_pokrycia"):
+                k2 = _kontrola(indeks, pytanie, tekst2, cytaty2, kontekst, przeglad, weryfikacja)
+                slad["kontrola"].append(_slad_kontroli(k2))
+                if k2["status"] != "niezweryfikowana" and k2["wynik_kontroli"] < k["wynik_kontroli"]:
+                    k, cytaty, uwagi, naprawiono = k2, cytaty2, uwagi2, True
+                else:
+                    slad["naprawa"]["odrzucona"] = "poprawiona wersja nie wypadła lepiej w kontroli"
+            else:
+                slad["naprawa"]["odrzucona"] = "model nie dał poprawionej odpowiedzi z cytatami"
+        except (BrakLLM, ValueError) as e:
+            slad["naprawa"] = {"powody": k["powody"], "blad": str(e)}
+        czasy["naprawa"] = round(time.time() - t4, 1)
+
+    wspolne["cytaty"] = cytaty
+    usuniete = k["usuniete"]
+    if not k["na_temat"]:
+        return _odmowa("odrzucona", uwagi=uwagi, **wspolne,
+                       zdania_usuniete=usuniete + [f"{z}  [nie na temat pytania]" for z in k["zdania"]],
+                       tekst="Odpowiedź modelu dotyczyła innej kwestii niż pytanie – sprawa wymaga referenta.")
+    tekst = " ".join(k["zdania"]).strip()
     if not tekst:
-        return _odmowa( zdania_usuniete=usuniete, uwagi=uwagi, **wspolne,
-                         tekst="Żadne zdanie odpowiedzi nie znalazło pokrycia w przepisach – sprawa wymaga referenta.")
-    return Odpowiedz(tryb="odpowiedz", tekst=tekst, zdania_usuniete=usuniete, uwagi=uwagi, **wspolne)
+        return _odmowa("odrzucona", zdania_usuniete=usuniete, uwagi=uwagi, **wspolne,
+                       tekst="Żadne zdanie odpowiedzi nie znalazło pokrycia w przepisach – sprawa wymaga referenta.")
+    status = k["status"]
+    if status == "niezweryfikowana":
+        uwagi = (uwagi + " NIEZWERYFIKOWANA: " + k.get("blad", "")).strip()
+    elif status == "zweryfikowana" and not k["wprost"]:
+        status = "ograniczona"
+        uwagi = (uwagi + " Odpowiedź nie rozstrzyga pytania wprost – sprawdź cytaty albo przekaż referentowi.").strip()
+    return Odpowiedz(tryb="odpowiedz", tekst=tekst, zdania_usuniete=usuniete, uwagi=uwagi,
+                     status_weryfikacji=status, naprawa=naprawiono, **wspolne)

@@ -18,6 +18,8 @@ from __future__ import annotations
 import json
 import logging
 import re
+import threading
+import time
 import urllib.error
 import urllib.request
 from typing import Any, Optional
@@ -25,6 +27,27 @@ from typing import Any, Optional
 from .config import KONFIG
 
 log = logging.getLogger("lexrag")
+
+# --- ślad diagnostyczny: pełne żądania i odpowiedzi modelu w bieżącym wątku ----------------
+_SLAD = threading.local()
+
+
+def rozpocznij_slad() -> list:
+    """Od tej chwili każde wywołanie modelu w tym wątku zapisuje wiadomości, parametry, surową odpowiedź i błędy."""
+    _SLAD.wpisy = []
+    return _SLAD.wpisy
+
+
+def zakoncz_slad() -> list:
+    wpisy = getattr(_SLAD, "wpisy", None)
+    _SLAD.wpisy = None
+    return wpisy or []
+
+
+def _do_sladu(wpis: dict) -> None:
+    wpisy = getattr(_SLAD, "wpisy", None)
+    if wpisy is not None:
+        wpisy.append(wpis)
 
 
 class BrakLLM(RuntimeError):
@@ -129,6 +152,8 @@ def _czat_ollama(wiadomosci, schema, json_mode, temperatura, model, max_tokens) 
         cialo["think"] = KONFIG.llm_think == "1"
     cialo.update(_extra())
     dane = _post_ollama(baza, cialo, model)
+    _SLAD.meta = ({k: dane.get(k) for k in ("prompt_eval_count", "eval_count", "done_reason")} if isinstance(dane, dict) else {})
+    _SLAD.meta["format"] = cialo.get("format") if isinstance(cialo.get("format"), str) else ("schemat" if cialo.get("format") else None)
     msg = dane.get("message") if isinstance(dane, dict) else None
     if not isinstance(msg, dict):
         raise BrakLLM(f"Niespodziewana odpowiedź Ollamy: {str(dane)[:300]}")
@@ -175,24 +200,40 @@ def _czat_openai(wiadomosci, schema, json_mode, temperatura, model, max_tokens) 
         tresc = wybor["message"]["content"] or ""
     except (KeyError, IndexError, TypeError) as e:
         raise BrakLLM(f"Niespodziewana odpowiedź LLM: {str(dane)[:300]}") from e
+    _SLAD.meta = {"finish_reason": wybor.get("finish_reason"), "usage": dane.get("usage")}
     if wybor.get("finish_reason") == "length":
         log.warning("Odpowiedź ucięta limitem tokenów (%d) – zwiększ max_tokens.", max_tokens)
     return tresc
 
 
 def czat(wiadomosci: list[dict], json_mode: bool = False, temperatura: float = 0.0,
-         model: Optional[str] = None, max_tokens: int = 1500, schema: Optional[dict] = None) -> str:
+         model: Optional[str] = None, max_tokens: int = 1500, schema: Optional[dict] = None,
+         etykieta: str = "") -> str:
     """Jedno wywołanie czatu; zwraca treść odpowiedzi (string).
 
     `schema` – JSON Schema oczekiwanej odpowiedzi (dekodowanie ograniczone, gdy serwer umie);
-    `json_mode` – tylko "odpowiedz JSON-em", bez schematu.
+    `json_mode` – tylko "odpowiedz JSON-em", bez schematu; `etykieta` – nazwa kroku w śladzie diagnostycznym.
     """
     model = model or KONFIG.llm_model
     if not model:
         raise BrakLLM("Nie ustawiono LEXRAG_LLM_MODEL – tryb retrieval-only.")
-    if tryb_api() == "ollama":
-        return _czat_ollama(wiadomosci, schema, json_mode, temperatura, model, max_tokens)
-    return _czat_openai(wiadomosci, schema, json_mode, temperatura, model, max_tokens)
+    _SLAD.meta = {}
+    t0 = time.time()
+    wpis = {"etykieta": etykieta, "model": model, "tryb": tryb_api(), "messages": wiadomosci,
+            "max_tokens": max_tokens, "temperatura": temperatura, "seed": KONFIG.llm_seed,
+            "num_ctx": KONFIG.llm_num_ctx, "schemat": schema is not None, "json_mode": json_mode}
+    try:
+        if tryb_api() == "ollama":
+            tresc = _czat_ollama(wiadomosci, schema, json_mode, temperatura, model, max_tokens)
+        else:
+            tresc = _czat_openai(wiadomosci, schema, json_mode, temperatura, model, max_tokens)
+    except Exception as e:
+        wpis.update(blad=f"{type(e).__name__}: {e}", czas_s=round(time.time() - t0, 1))
+        _do_sladu(wpis)
+        raise
+    wpis.update(odpowiedz_surowa=tresc, czas_s=round(time.time() - t0, 1), meta=getattr(_SLAD, "meta", {}))
+    _do_sladu(wpis)
+    return tresc
 
 
 _RE_JSON = re.compile(r"\{.*\}", re.S)
@@ -231,6 +272,7 @@ def czat_json(wiadomosci: list[dict], model: Optional[str] = None, proby: int = 
             return wyciagnij_json(czat(wiad, json_mode=True, model=model, schema=schema, **kw))
         except ValueError as e:
             ostatni = e
+            _do_sladu({"etykieta": kw.get("etykieta", ""), "proba": proba + 1, "blad_json": str(e)[:300]})
             wiad = list(wiadomosci) + [{"role": "user", "content":
                                         "Poprzednia odpowiedź nie była poprawnym JSON. Zwróć WYŁĄCZNIE jeden "
                                         "obiekt JSON zgodny z podanym schematem, bez komentarzy."}]

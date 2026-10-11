@@ -91,14 +91,14 @@ def parsuj_markdown(tekst: str, dokument: str, kod: str, max_znakow: int = 1800,
         if len(fragmenty) == 1:
             out.append(Jednostka(id=id_sekcji, akt=dokument, akt_kod=kod, poziom="sekcja",
                                  sciezka=sciezka_txt, tekst=sekcja_tekst, opis=opis_wersji,
-                                 obowiazuje_od=obowiazuje_od, obowiazuje_do=obowiazuje_do, szukalny=True))
+                                 wersja=wersja, obowiazuje_od=obowiazuje_od, obowiazuje_do=obowiazuje_do, szukalny=True))
             continue
         out.append(Jednostka(id=id_sekcji, akt=dokument, akt_kod=kod, poziom="sekcja",
                              sciezka=sciezka_txt, tekst=sekcja_tekst,
-                             obowiazuje_od=obowiazuje_od, obowiazuje_do=obowiazuje_do, szukalny=False))
+                             wersja=wersja, obowiazuje_od=obowiazuje_od, obowiazuje_do=obowiazuje_do, szukalny=False))
         for i, fr in enumerate(fragmenty, start=1):
             out.append(Jednostka(id=f"{id_sekcji}:f{i}", akt=dokument, akt_kod=kod, poziom="fragment",
                                  sciezka=f"{sciezka_txt} > fragment {i}/{len(fragmenty)}", tekst=fr,
                                  opis=opis_wersji, rodzic=id_sekcji,
-                                 obowiazuje_od=obowiazuje_od, obowiazuje_do=obowiazuje_do, szukalny=True))
+                                 wersja=wersja, obowiazuje_od=obowiazuje_od, obowiazuje_do=obowiazuje_do, szukalny=True))
     return out

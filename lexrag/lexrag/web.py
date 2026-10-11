@@ -79,8 +79,11 @@ def _akty(idx: Indeks) -> list[dict]:
     akty: dict[str, dict] = {}
     for j in idx.jednostki.values():
         a = akty.setdefault(j.akt_kod, {"kod": j.akt_kod, "akt": j.akt, "jednostek": 0, "szukalnych": 0, "opisy": 0,
-                                         "obowiazuje_od": j.obowiazuje_od, "obowiazuje_do": j.obowiazuje_do})
+                                         "obowiazuje_od": j.obowiazuje_od, "obowiazuje_do": j.obowiazuje_do,
+                                         "wersja": ""})
         a["jednostek"] += 1
+        if j.wersja and not a["wersja"]:
+            a["wersja"] = j.wersja
         if j.szukalny:
             a["szukalnych"] += 1
             if j.opis:
@@ -140,7 +143,7 @@ def _zadanie_wgraj(sciezka: str, kod: str, akt: str, typ: str,
             from .fetch import wczytaj_dowolny
             from .parse_ustawa import parsuj_ustawe, statystyki
             tekst = wczytaj_dowolny(sciezka)
-            jednostki = parsuj_ustawe(tekst, akt, kod, od, do)
+            jednostki = parsuj_ustawe(tekst, akt, kod, od, do, wersja=wersja)
             st = statystyki(jednostki)
         if len(jednostki) < 3:
             raise ValueError("za mało jednostek – ustawa musi mieć 'Art. N.' na początku linii, "
@@ -190,22 +193,41 @@ def pytanie(p: Pytanie) -> dict:
     na_dzien = (p.na_dzien or "").strip() or date.today().isoformat()
     w = odpowiedz(idx, tresc, na_dzien=na_dzien, analiza=p.analiza)
     ident = uuid.uuid4().hex
+    _zapisz_slad(ident, w.slad)
     _dopisz("odpowiedzi.jsonl", {
         "id": ident, "czas": datetime.now().isoformat(timespec="seconds"), "pytanie": _maskuj(tresc),
         "na_dzien": na_dzien, "tryb": w.tryb, "tekst": w.tekst, "cytowane": [j.id for j in w.cytaty],
         "kontekst": [j.id for j in w.kontekst], "model": KONFIG.llm_model, "indeks": KATALOG_INDEKSU,
-        "przeglad": w.przeglad, "czasy": w.czasy})
+        "przeglad": w.przeglad, "czasy": w.czasy, "status_weryfikacji": w.status_weryfikacji,
+        "naprawa": w.naprawa, "uwagi": w.uwagi, "zdania_usuniete": w.zdania_usuniete, "warianty": w.warianty,
+        "brakujace_parametry": w.brakujace_parametry, "dopytanie": w.dopytanie})
+    akty = {a["kod"]: a for a in _akty(idx)}
+    zrodla = [akty[k] for k in dict.fromkeys(j.akt_kod for j in w.cytaty) if k in akty]
     return {
-        "id_odpowiedzi": ident,
+        "id_odpowiedzi": ident, "slad_url": f"/api/slad/{ident}",
         "tryb": w.tryb, "tekst": w.tekst, "uwagi": w.uwagi, "czasy": w.czasy, "warianty": w.warianty,
         "brakujace_parametry": w.brakujace_parametry, "zdania_usuniete": w.zdania_usuniete,
         "przeglad": w.przeglad, "dopytanie": w.dopytanie,
+        "status_weryfikacji": w.status_weryfikacji, "naprawa": w.naprawa, "zrodla": zrodla,
         "cytaty": [_jednostka_json(j) for j in w.cytaty],
         "trafienia": [{"id": t.id, "wynik": round(float(t.wynik), 3), "zrodlo": t.zrodlo,
                        "sciezka": idx.jednostki[t.id].sciezka, "tekst": idx.jednostki[t.id].tekst}
                       for t in w.trafienia[:8] if t.id in idx.jednostki],
         "kontekst": [j.id for j in w.kontekst],
     }
+
+
+@app.get("/api/slad/{ident}")
+def slad(ident: str) -> dict:
+    """Pełny ślad diagnostyczny odpowiedzi: analiza, zapytania, ranking, kontekst, wszystkie wiadomości do modelu
+    i jego surowe odpowiedzi, werdykty kontroli, cykl naprawczy."""
+    if not re.fullmatch(r"[0-9a-f]{32}", ident):
+        raise HTTPException(400, "Zły identyfikator.")
+    sciezka = os.path.join(KATALOG_DANYCH, "slady", f"{ident}.json")
+    if not os.path.exists(sciezka):
+        raise HTTPException(404, "Nie ma śladu o tym identyfikatorze.")
+    with open(sciezka, encoding="utf-8") as f:
+        return json.load(f)
 
 
 @app.get("/api/jednostka/{ident}")
@@ -272,6 +294,14 @@ def _maskuj(tekst: str) -> str:
 def _plik_danych(nazwa: str) -> str:
     os.makedirs(KATALOG_DANYCH, exist_ok=True)
     return os.path.join(KATALOG_DANYCH, nazwa)
+
+
+def _zapisz_slad(ident: str, slad: dict) -> None:
+    """Osobny plik JSON na odpowiedź (prompty, surowe wyjścia modelu, werdykty); ciągi 11 cyfr maskowane."""
+    katalog = os.path.join(KATALOG_DANYCH, "slady")
+    os.makedirs(katalog, exist_ok=True)
+    with open(os.path.join(katalog, f"{ident}.json"), "w", encoding="utf-8") as f:
+        f.write(_maskuj(json.dumps(slad, ensure_ascii=False, indent=1, default=str)))
 
 
 def _dopisz(nazwa: str, rekord: dict) -> None:

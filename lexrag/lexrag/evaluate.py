@@ -78,7 +78,7 @@ def ewaluuj(indeks: Indeks, zloty: list[dict], uzyj_emb: bool = True, uzyj_reran
         else:
             ids = [t.id for t in kandydaci]
             do_kontekstu = kandydaci[:8]
-        kontekst = rozszerz(indeks, do_kontekstu)
+        kontekst = rozszerz(indeks, do_kontekstu, na_dzien=na_dzien)
         wyniki.append(WynikPytania(pytanie, list(w["oczekiwane"]), ids[: max(k_lista) * 2],
                                    [j.id for j in kontekst]))
 
@@ -162,6 +162,7 @@ def ewaluuj_odpowiedzi(indeks: Indeks, zloty: list[dict], na_dzien: Optional[str
             "cytowane": cyt, "oczekiwane": oczek, "cytat_ok": cytat_ok, "kontekst_ok": kontekst_ok,
             "brak_fraz": brak_fraz, "zakazane_frazy": zakazane, "frazy_ok": frazy_ok,
             "zdania_usuniete": o.zdania_usuniete, "warianty": o.warianty,
+            "status_weryfikacji": o.status_weryfikacji, "naprawa": o.naprawa, "przeglad": o.przeglad,
             "poprawna": odpowiedziano and cytat_ok is not False and frazy_ok is not False,
             "czas_s": round(time.time() - t0, 1), "czasy": o.czasy,
         }
@@ -190,6 +191,12 @@ def raport_odpowiedzi(wyniki: list[dict]) -> str:
                      f"{sum(1 for r in wyniki if r['kontekst_ok'] is not False) / n:.1%}")
         linie.append(f"  średni czas: {sum(r['czas_s'] for r in wyniki) / n:.1f} s/pytanie; "
                      f"zdań usuniętych łącznie: {sum(len(r['zdania_usuniete']) for r in wyniki)}")
+        statusy: dict[str, int] = {}
+        for r in wyniki:
+            s = r.get("status_weryfikacji") or "-"
+            statusy[s] = statusy.get(s, 0) + 1
+        linie.append("  statusy weryfikacji: " + ", ".join(f"{k}: {v}" for k, v in sorted(statusy.items()))
+                     + f"; odpowiedzi po cyklu naprawczym: {sum(1 for r in wyniki if r.get('naprawa'))}")
     zle = [r for r in wyniki if r["tryb"] == "odpowiedz" and not r["poprawna"]]
     if zle:
         linie.append("\nOdpowiedzi NIEPOPRAWNE (do przejrzenia):")

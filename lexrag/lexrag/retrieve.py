@@ -100,13 +100,14 @@ def rerank(indeks: Indeks, pytanie: str, kandydaci: list[Trafienie],
 
 # --- rozszerzanie kontekstu -------------------------------------------------
 def rozszerz(indeks: Indeks, trafienia: list[Trafienie], max_znakow: Optional[int] = None,
-             z_rodzicem: bool = True, z_odwolaniami: bool = True, z_definicjami: bool = True
-             ) -> list[Jednostka]:
+             z_rodzicem: bool = True, z_odwolaniami: bool = True, z_definicjami: bool = True,
+             na_dzien: Optional[str] = None) -> list[Jednostka]:
     """Zwraca jednostki do promptu w kolejności ważności, bez duplikatów, w budżecie znaków.
 
     Kolejność: trafienia → ich rodzice (cały artykuł) → odesłania 1 skok → definicje terminów
     występujących w trafieniach. Gdy do promptu wchodzi rodzic, sam ustęp i tak zostaje
-    (model ma widzieć, który fragment był trafieniem).
+    (model ma widzieć, który fragment był trafieniem). `na_dzien` odrzuca jednostki nieobowiązujące
+    w tym dniu także wśród rodziców, odesłań i definicji (trafienia filtruje już szukaj()).
     """
     max_znakow = max_znakow or KONFIG.max_znakow_kontekstu
     wybrane: list[Jednostka] = []
@@ -119,6 +120,8 @@ def rozszerz(indeks: Indeks, trafienia: list[Trafienie], max_znakow: Optional[in
             return
         j = indeks.jednostki.get(ident)
         if j is None or not j.tekst.strip():
+            return
+        if na_dzien and not j.obowiazuje(na_dzien):
             return
         if uzyte + len(j.tekst) > max_znakow:
             return

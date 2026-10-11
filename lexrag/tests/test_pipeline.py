@@ -58,22 +58,38 @@ def _mock_llm(monkeypatch, odpowiedzi):
 
     monkeypatch.setattr(generate, "czat_json", fake_czat_json)
     monkeypatch.setattr(generate, "llm_dostepny", lambda: True)
-    monkeypatch.setattr(generate, "KONFIG", dataclasses.replace(generate.KONFIG, pomin_analize=False))  # niezależnie od LEXRAG_SKIP_ANALYSIS
+    monkeypatch.setattr(generate, "KONFIG", dataclasses.replace(generate.KONFIG, pomin_analize=False, naprawa=False))  # niezależnie od LEXRAG_SKIP_ANALYSIS; bez cyklu naprawczego
 
 
-def test_brak_parametrow_daje_odpowiedz_przegladowa_z_dopytaniem(indeks, monkeypatch):
-    """Gdy analiza widzi brak danych, system nie kończy na dopytaniu: odpowiada przeglądowo i dopytuje na końcu."""
-    _mock_llm(monkeypatch, [
-        {"brakujace_parametry": ["data urodzenia", "płeć"],
-         "pytanie_doprecyzowujace": "Podaj datę urodzenia i płeć.", "warianty": []},
+def test_brak_parametrow_nie_wlacza_przegladu_tylko_dopytanie(indeks, monkeypatch):
+    """Brak danych wg analizy NIE przełącza odpowiedzi w tryb przeglądowy (po recenzji audytu z 11.10.2026):
+    odpowiedź jest zwykła (warunkowa), pytanie doprecyzowujące idzie obok niej, a weryfikator dostaje
+    oryginalne pytanie bez dopisku o trybie."""
+    prompty = []
+    odpowiedzi = [
+        {"brakujace_parametry": ["data urodzenia", "płeć"], "pytanie_doprecyzowujace": "Podaj datę urodzenia i płeć.", "warianty": []},
         {"odpowiedz": "Świadczenie przysługuje po osiągnięciu wieku emerytalnego, który zależy od płci.",
          "cytowane_id": ["test:art24:ust1"], "brak_pokrycia": False},
-        {"zdania": [{"nr": 1, "pokryte": True, "id": "test:art24:ust1"}], "odpowiada_na_pytanie": True},
-    ])
-    w = generate.odpowiedz(indeks, "wiek świadczenie urodzeni po 1948", uzyj_emb=False, uzyj_reranker=False)
-    assert w.tryb == "odpowiedz" and w.przeglad
+        {"zdania": [{"nr": 1, "pokryte": True, "id": "test:art24:ust1", "warunki_poprawne": True, "odrebna_podstawa_jako_warunek": False}],
+         "odpowiada_na_pytanie": True, "odpowiada_wprost": True, "bledy": []},
+    ]
+
+    def fake(wiadomosci, model=None, proby=2, **kw):
+        prompty.append(wiadomosci[-1]["content"])
+        return odpowiedzi[len(prompty) - 1]
+
+    monkeypatch.setattr(generate, "czat_json", fake)
+    monkeypatch.setattr(generate, "llm_dostepny", lambda: True)
+    monkeypatch.setattr(generate, "KONFIG", dataclasses.replace(generate.KONFIG, pomin_analize=False, naprawa=False))
+    w = generate.odpowiedz(indeks, "od jakiego wieku przysługuje świadczenie osobom urodzonym po 1948", uzyj_emb=False, uzyj_reranker=False)
+    assert w.tryb == "odpowiedz" and not w.przeglad and w.status_weryfikacji == "zweryfikowana"
     assert "datę urodzenia" in w.dopytanie and w.brakujace_parametry == ["data urodzenia", "płeć"]
     assert [c.id for c in w.cytaty] == ["test:art24:ust1"]
+    assert "PRZEGLĄDOWO" not in prompty[1]                                        # prompt odpowiedzi bez dopisku przeglądowego
+    assert "[pytanie hasłowe" not in prompty[2] and "Tryb odpowiedzi" not in prompty[2]   # weryfikator ocenia oryginalne pytanie
+    assert w.slad["analiza"]["brakujace_parametry"] == ["data urodzenia", "płeć"]
+    assert w.slad["kontrola"][0]["status"] == "zweryfikowana" and w.slad["generator"]["cytowane_id"] == ["test:art24:ust1"]
+    assert w.slad["trafienia"][0]["id"] in w.slad["kontekst"]
 
 
 def test_dopytanie_gdy_odpowiedz_przegladowa_nie_ma_pokrycia(indeks, monkeypatch):
@@ -84,6 +100,7 @@ def test_dopytanie_gdy_odpowiedz_przegladowa_nie_ma_pokrycia(indeks, monkeypatch
     ])
     w = generate.odpowiedz(indeks, "wiek świadczenie urodzeni po 1948", uzyj_emb=False, uzyj_reranker=False)
     assert w.tryb == "dopytanie" and w.tekst == "Podaj datę urodzenia." and "brak przepisu" in w.uwagi
+    assert w.status_weryfikacji == "brak_zrodel"
 
 
 def test_pytanie_haslowe_bez_analizy_idzie_w_tryb_przegladowy(indeks, monkeypatch):
@@ -96,10 +113,11 @@ def test_pytanie_haslowe_bez_analizy_idzie_w_tryb_przegladowy(indeks, monkeypatc
 
     monkeypatch.setattr(generate, "czat_json", fake)
     monkeypatch.setattr(generate, "llm_dostepny", lambda: True)
-    monkeypatch.setattr(generate, "KONFIG", dataclasses.replace(generate.KONFIG, pomin_analize=False))  # niezależnie od LEXRAG_SKIP_ANALYSIS
+    monkeypatch.setattr(generate, "KONFIG", dataclasses.replace(generate.KONFIG, pomin_analize=False, naprawa=False))  # niezależnie od LEXRAG_SKIP_ANALYSIS
     w = generate.odpowiedz(indeks, "wiek świadczenie urodzeni po 1948", uzyj_emb=False, uzyj_reranker=False, analiza=False)
     assert w.tryb == "odpowiedz" and w.przeglad and w.dopytanie == ""
     assert "PRZEGLĄDOWO" in zebrane[0]            # prompt odpowiedzi dostał dopisek przeglądowy
+    assert "Tryb odpowiedzi: przeglądowa" in zebrane[1] and "[pytanie hasłowe" not in zebrane[1]   # weryfikator: tryb osobną linią, pytanie bez zmian
 
 
 def test_odpowiedz_z_cytatami_i_usuwaniem_zdan(indeks, monkeypatch):
@@ -142,8 +160,11 @@ def test_filtr_na_dzien(indeks, tmp_path):
     p = str(tmp_path / "stara.jsonl")
     zapisz_jsonl(stare, p)
     idx = Indeks.zbuduj([p], str(tmp_path / "idx"), z_embeddingami=False)
-    assert szukaj(idx, ["zwrot nienależnie pobranych"], na_dzien="2010-01-01", uzyj_emb=False)
+    traf = szukaj(idx, ["zwrot nienależnie pobranych"], na_dzien="2010-01-01", uzyj_emb=False)
+    assert traf
     assert not szukaj(idx, ["zwrot nienależnie pobranych"], na_dzien="2024-01-01", uzyj_emb=False)
+    assert rozszerz(idx, traf, na_dzien="2010-01-01")                 # rodzice i odesłania w zakresie dat wchodzą
+    assert not rozszerz(idx, traf, na_dzien="2024-01-01")             # ...a poza zakresem nie (po recenzji audytu)
 
 
 def test_odmowa_gdy_odpowiedz_nie_na_temat(indeks, monkeypatch):
@@ -177,7 +198,7 @@ def test_weryfikacja_dopytuje_o_brakujace_werdykty(indeks, monkeypatch):
     ]
     monkeypatch.setattr(generate, "czat_json", fake_czat_json)
     monkeypatch.setattr(generate, "llm_dostepny", lambda: True)
-    monkeypatch.setattr(generate, "KONFIG", dataclasses.replace(generate.KONFIG, pomin_analize=False))  # niezależnie od LEXRAG_SKIP_ANALYSIS
+    monkeypatch.setattr(generate, "KONFIG", dataclasses.replace(generate.KONFIG, pomin_analize=False, naprawa=False))  # niezależnie od LEXRAG_SKIP_ANALYSIS
     w = generate.odpowiedz(indeks, "za jaki okres można żądać zwrotu", uzyj_emb=False, uzyj_reranker=False)
     assert w.tryb == "odpowiedz"
     assert w.tekst == ("Zwrotu można żądać za okres nie dłuższy niż 3 lata. "
@@ -210,3 +231,64 @@ def test_odmowa_gdy_zostaje_tylko_powtorzenie_pytania(indeks, monkeypatch):
     ])
     w = generate.odpowiedz(indeks, "za jaki okres można żądać zwrotu", uzyj_emb=False, uzyj_reranker=False)
     assert w.tryb == "odmowa" and "Żadne zdanie" in w.tekst
+
+
+def test_cykl_naprawczy_gdy_odpowiedz_nie_rozstrzyga(indeks, monkeypatch):
+    """Weryfikator wskazuje błędy (odrębna podstawa jako warunek, brak rozstrzygnięcia) → jedna poprawka z listą
+    błędów → ponowna kontrola → lepsza wersja zostaje."""
+    prompty = []
+    odpowiedzi = [
+        {"brakujace_parametry": [], "pytanie_doprecyzowujace": "", "warianty": []},
+        {"odpowiedz": "Zwrotu można żądać za okres nie dłuższy niż 3 lata. Aby odpowiedzieć, należy potwierdzić prawo do odsetek.",
+         "cytowane_id": ["test:art138:ust3"], "brak_pokrycia": False},
+        {"zdania": [{"nr": 1, "pokryte": True, "id": "test:art138:ust3", "warunki_poprawne": True, "odrebna_podstawa_jako_warunek": False},
+                    {"nr": 2, "pokryte": True, "id": "", "warunki_poprawne": True, "odrebna_podstawa_jako_warunek": True}],
+         "odpowiada_na_pytanie": True, "odpowiada_wprost": False, "bledy": ["zdanie 2: warunek z innego przepisu"]},
+        {"odpowiedz": "Tak, zwrotu można żądać za okres nie dłuższy niż 3 lata.", "cytowane_id": ["test:art138:ust3"], "brak_pokrycia": False},
+        {"zdania": [{"nr": 1, "pokryte": True, "id": "test:art138:ust3", "warunki_poprawne": True, "odrebna_podstawa_jako_warunek": False}],
+         "odpowiada_na_pytanie": True, "odpowiada_wprost": True, "bledy": []},
+    ]
+
+    def fake(wiadomosci, model=None, proby=2, **kw):
+        prompty.append((kw.get("etykieta"), wiadomosci[-1]["content"]))
+        return odpowiedzi[len(prompty) - 1]
+
+    monkeypatch.setattr(generate, "czat_json", fake)
+    monkeypatch.setattr(generate, "llm_dostepny", lambda: True)
+    monkeypatch.setattr(generate, "KONFIG", dataclasses.replace(generate.KONFIG, pomin_analize=False, naprawa=True))
+    w = generate.odpowiedz(indeks, "czy można żądać zwrotu za 3 lata", uzyj_emb=False, uzyj_reranker=False)
+    assert w.tryb == "odpowiedz" and w.naprawa and w.status_weryfikacji == "zweryfikowana"
+    assert w.tekst.startswith("Tak,") and "potwierdzić" not in w.tekst
+    assert [e for e, _ in prompty] == ["analiza", "odpowiedz", "weryfikacja", "naprawa", "weryfikacja"]
+    assert "warunek z innego przepisu" in prompty[3][1] and "nie rozstrzyga pytania wprost" in prompty[3][1]
+    assert len(w.slad["kontrola"]) == 2 and w.slad["naprawa"]["powody"]
+
+
+def test_bez_naprawy_zostaje_status_ograniczona(indeks, monkeypatch):
+    """Gdy cykl naprawczy jest wyłączony, odpowiedź bez rozstrzygnięcia przechodzi ze statusem „ograniczona” i uwagą."""
+    _mock_llm(monkeypatch, [
+        {"brakujace_parametry": [], "pytanie_doprecyzowujace": "", "warianty": []},
+        {"odpowiedz": "Zwrotu można żądać za okres nie dłuższy niż 3 lata.", "cytowane_id": ["test:art138:ust3"], "brak_pokrycia": False},
+        {"zdania": [{"nr": 1, "pokryte": True, "id": "test:art138:ust3", "warunki_poprawne": True, "odrebna_podstawa_jako_warunek": False}],
+         "odpowiada_na_pytanie": True, "odpowiada_wprost": False, "bledy": ["brak rozstrzygnięcia"]},
+    ])
+    w = generate.odpowiedz(indeks, "czy można żądać zwrotu za 3 lata", uzyj_emb=False, uzyj_reranker=False)
+    assert w.tryb == "odpowiedz" and not w.naprawa and w.status_weryfikacji == "ograniczona"
+    assert "nie rozstrzyga pytania wprost" in w.uwagi
+
+
+def test_awaria_weryfikatora_daje_status_niezweryfikowana(indeks, monkeypatch):
+    def fake(wiadomosci, model=None, proby=2, **kw):
+        et = kw.get("etykieta")
+        if et == "analiza":
+            return {"brakujace_parametry": [], "pytanie_doprecyzowujace": "", "warianty": []}
+        if et == "odpowiedz":
+            return {"odpowiedz": "Zwrotu można żądać za okres nie dłuższy niż 3 lata.", "cytowane_id": ["test:art138:ust3"], "brak_pokrycia": False}
+        raise llm.BrakLLM("model padł")
+
+    monkeypatch.setattr(generate, "czat_json", fake)
+    monkeypatch.setattr(generate, "llm_dostepny", lambda: True)
+    monkeypatch.setattr(generate, "KONFIG", dataclasses.replace(generate.KONFIG, pomin_analize=False, naprawa=True))
+    w = generate.odpowiedz(indeks, "za jaki okres można żądać zwrotu", uzyj_emb=False, uzyj_reranker=False)
+    assert w.tryb == "odpowiedz" and w.status_weryfikacji == "niezweryfikowana" and not w.naprawa
+    assert "NIEZWERYFIKOWANA" in w.uwagi and w.slad["kontrola"][0]["blad"] == "model padł"

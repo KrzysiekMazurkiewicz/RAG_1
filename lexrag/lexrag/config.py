@@ -62,6 +62,10 @@ class Konfig:
     # każda liczba w odpowiedzi (kwoty, terminy, lata, procenty) musi występować w kontekście;
     # zdania z liczbami "znikąd" są usuwane bez pytania modelu
     kontrola_liczb: bool = _env("LEXRAG_NUMERIC_CHECK", "1") == "1"
+    # jeden cykl naprawczy: gdy weryfikacja wskaże błędy (odpowiedź nie na temat, bez rozstrzygnięcia pytania
+    # zamkniętego, zdania usunięte przez weryfikator), model pisze odpowiedź raz jeszcze z listą błędów i kontrola
+    # biegnie ponownie; po drugim niepowodzeniu zostaje to, co przeszło kontrolę. "0" wyłącza.
+    naprawa: bool = _env("LEXRAG_NAPRAWA", "1") == "1"
 
 
 KONFIG = Konfig()

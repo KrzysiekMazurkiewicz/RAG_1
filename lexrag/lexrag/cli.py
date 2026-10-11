@@ -37,11 +37,11 @@ def _skrot(t: str, n: int = 140) -> str:
     return t if len(t) <= n else t[: n - 1] + "…"
 
 
-def _parsuj_do_jsonl(plik: str, kod: str, akt: str, out: str, obowiazuje_od, obowiazuje_do) -> tuple[list, dict]:
+def _parsuj_do_jsonl(plik: str, kod: str, akt: str, out: str, obowiazuje_od, obowiazuje_do, wersja: str = "") -> tuple[list, dict]:
     from .fetch import wczytaj_dowolny
     from .parse_ustawa import parsuj_ustawe, statystyki
     tekst = wczytaj_dowolny(plik)
-    jednostki = parsuj_ustawe(tekst, akt or "", kod, obowiazuje_od, obowiazuje_do)
+    jednostki = parsuj_ustawe(tekst, akt or "", kod, obowiazuje_od, obowiazuje_do, wersja=wersja)
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     n = zapisz_jsonl(jednostki, out)
     st = statystyki(jednostki)
@@ -62,13 +62,13 @@ def cmd_fetch(a):
 
 def cmd_parse(a):
     out = a.out or f"data/units/{a.kod}.jsonl"
-    _parsuj_do_jsonl(a.plik, a.kod, a.akt, out, a.obowiazuje_od, a.obowiazuje_do)
+    _parsuj_do_jsonl(a.plik, a.kod, a.akt, out, a.obowiazuje_od, a.obowiazuje_do, wersja=a.wersja)
 
 
 def cmd_wgraj(a):
     from .index import Indeks
     out = a.out or f"data/units/{a.kod}.jsonl"
-    _parsuj_do_jsonl(a.plik, a.kod, a.akt, out, a.obowiazuje_od, a.obowiazuje_do)
+    _parsuj_do_jsonl(a.plik, a.kod, a.akt, out, a.obowiazuje_od, a.obowiazuje_do, wersja=a.wersja)
     pliki = [out] + list(a.dolacz or [])
     idx = Indeks.zbuduj(pliki, a.index, z_embeddingami=not a.bez_emb)
     print(f"Indeks: {len(idx)} jednostek szukalnych z {len(idx.jednostki)} ogółem → {a.index} "
@@ -132,6 +132,8 @@ def wypisz_odpowiedz(w, idx, pokaz_kontekst: bool = False) -> None:
         print("Pytanie do użytkownika:", w.tekst)
         return
     print("\n" + w.tekst)
+    if getattr(w, "status_weryfikacji", ""):
+        print(f"status weryfikacji: {w.status_weryfikacji}" + (" (odpowiedź po cyklu naprawczym)" if getattr(w, "naprawa", False) else ""))
     if getattr(w, "przeglad", False):
         print("(odpowiedź przeglądowa – pytanie ogólne albo bez danych o sytuacji)")
     if getattr(w, "dopytanie", ""):
@@ -162,8 +164,13 @@ def cmd_ask(a):
     from .index import Indeks
     idx = Indeks.wczytaj(a.index)
     w = odpowiedz(idx, a.pytanie, **_opcje_odpowiedzi(a))
+    if getattr(a, "slad", None):
+        with open(a.slad, "w", encoding="utf-8") as f:
+            json.dump(w.slad, f, ensure_ascii=False, indent=1, default=str)
+        print(f"ślad diagnostyczny: {a.slad}", file=sys.stderr)
     if a.json:
-        print(json.dumps({"tryb": w.tryb, "tekst": w.tekst, "cytaty": [{"id": j.id, "sciezka": j.sciezka, "tekst": j.tekst} for j in w.cytaty],
+        print(json.dumps({"tryb": w.tryb, "tekst": w.tekst, "status_weryfikacji": w.status_weryfikacji, "naprawa": w.naprawa,
+                          "cytaty": [{"id": j.id, "sciezka": j.sciezka, "tekst": j.tekst} for j in w.cytaty],
                           "zdania_usuniete": w.zdania_usuniete, "uwagi": w.uwagi, "czasy": w.czasy,
                           "trafienia": [t.id for t in w.trafienia]}, ensure_ascii=False, indent=1))
         return
@@ -280,6 +287,7 @@ def _opcje_pytania(s):
     s.add_argument("--bez-dopytania", action="store_true"); s.add_argument("--bez-weryfikacji", action="store_true")
     s.add_argument("--bez-analizy", action="store_true", help="pomiń krok analizy pytania (szybciej na CPU)")
     s.add_argument("--pokaz-kontekst", action="store_true")
+    s.add_argument("--slad", help="zapisz pełny ślad diagnostyczny (JSON: analiza, ranking, prompty, surowe odpowiedzi, werdykty)")
 
 
 def main(argv=None) -> None:
@@ -296,6 +304,7 @@ def main(argv=None) -> None:
     s.add_argument("--dolacz", nargs="*", help="dodatkowe pliki JSONL do tego samego indeksu")
     s.add_argument("--bez-emb", action="store_true", help="tylko BM25 (bez embeddingów)")
     s.add_argument("--obowiazuje-od"); s.add_argument("--obowiazuje-do")
+    s.add_argument("--wersja", default="", help="etykieta wersji aktu, np. 'tj. Dz.U. 2024 poz. 1631'")
 
     s = sub.add_parser("chat", help="rozmowa z indeksem");  s.set_defaults(fn=cmd_chat)
     _opcje_pytania(s)
@@ -329,6 +338,7 @@ def main(argv=None) -> None:
     s.add_argument("plik"); s.add_argument("--kod", required=True, help="krótki prefiks id, np. fus")
     s.add_argument("--akt", help="pełna nazwa aktu"); s.add_argument("--out")
     s.add_argument("--obowiazuje-od"); s.add_argument("--obowiazuje-do")
+    s.add_argument("--wersja", default="", help="etykieta wersji aktu, np. 'tj. Dz.U. 2024 poz. 1631'")
 
     s = sub.add_parser("parse-doc", help="procedura (.md/.docx/.pdf) → JSONL");  s.set_defaults(fn=cmd_parse_doc)
     s.add_argument("plik"); s.add_argument("--kod", required=True); s.add_argument("--dokument")

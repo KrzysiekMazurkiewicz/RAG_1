@@ -305,13 +305,14 @@ def parsuj_ustawe(
     obowiazuje_od: Optional[str] = None,
     obowiazuje_do: Optional[str] = None,
     max_znakow_zalacznika: int = 1800,
+    wersja: str = "",
 ) -> list[Jednostka]:
     """Zamienia tekst aktu na listę jednostek (artykuły-rodzice, ustępy, definicje, załączniki)."""
     tytul, artykuly, zalaczniki = _parsuj_strukture(tekst)
     akt = akt or tytul or kod
     znane = {a.nr for a in artykuly if not a.zakres}
     out: list[Jednostka] = []
-    wspolne = dict(akt=akt, akt_kod=kod, obowiazuje_od=obowiazuje_od, obowiazuje_do=obowiazuje_do)
+    wspolne = dict(akt=akt, akt_kod=kod, obowiazuje_od=obowiazuje_od, obowiazuje_do=obowiazuje_do, wersja=wersja)
     widziane: set[str] = set()
 
     def unikalny(ident: str) -> tuple[str, str]:

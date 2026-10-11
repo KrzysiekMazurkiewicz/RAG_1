@@ -6,6 +6,7 @@ export interface Akt {
   jednostek: number
   szukalnych: number
   opisy: number
+  wersja: string
   obowiazuje_od: string | null
   obowiazuje_do: string | null
 }
@@ -55,6 +56,10 @@ export interface Odpowiedz {
   zdania_usuniete: string[]
   przeglad: boolean
   dopytanie: string
+  status_weryfikacji: string
+  naprawa: boolean
+  zrodla: Akt[]
+  slad_url: string
   cytaty: Jednostka[]
   trafienia: Trafienie[]
   kontekst: string[]

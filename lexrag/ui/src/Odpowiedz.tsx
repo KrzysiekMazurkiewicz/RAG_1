@@ -1,6 +1,21 @@
 import { useState } from 'react'
 import { api, type Jednostka, type Odpowiedz } from './api'
 
+const STATUS: Record<string, { nazwa: string; opis: string }> = {
+  zweryfikowana: { nazwa: 'zweryfikowana', opis: 'każde zdanie przeszło kontrolę pokrycia w cytowanych przepisach' },
+  ograniczona: {
+    nazwa: 'zweryfikowana, nie rozstrzyga pytania',
+    opis: 'zdania mają pokrycie, ale odpowiedź nie rozstrzyga pytania wprost; sprawdź cytaty albo przekaż referentowi',
+  },
+  niezweryfikowana: {
+    nazwa: 'NIEZWERYFIKOWANA',
+    opis: 'kontrola nie zadziałała (błąd modelu); to szkic do sprawdzenia przez pracownika, czytaj wyłącznie z cytatami',
+  },
+  pominieta: { nazwa: 'bez weryfikacji', opis: 'weryfikację wyłączono' },
+  brak_zrodel: { nazwa: 'brak źródeł', opis: 'w dostarczonych przepisach nie ma podstawy do odpowiedzi' },
+  odrzucona: { nazwa: 'odrzucona przez kontrolę', opis: 'odpowiedź modelu nie przeszła kontroli' },
+}
+
 const NAZWA_TRYBU: Record<Odpowiedz['tryb'], string> = {
   odpowiedz: 'odpowiedź',
   odmowa: 'odmowa',
@@ -58,8 +73,29 @@ export default function OdpowiedzWidok({ w }: { w: Odpowiedz }) {
       <div className="wiersz">
         <span className={`znacznik ${w.tryb}`}>{NAZWA_TRYBU[w.tryb] ?? w.tryb}</span>
         {w.przeglad && <span className="znacznik przeglad">odpowiedź przeglądowa</span>}
+        {w.status_weryfikacji && STATUS[w.status_weryfikacji] && (
+          <span className={`znacznik ${w.status_weryfikacji}`} title={STATUS[w.status_weryfikacji].opis}>
+            {STATUS[w.status_weryfikacji].nazwa}
+          </span>
+        )}
+        {w.naprawa && <span className="znacznik" title="pierwsza wersja nie przeszła kontroli; to druga, po liście błędów">po cyklu naprawczym</span>}
         {czasy && <span className="cichy">{czasy}</span>}
+        {w.slad_url && (
+          <a className="cichy" href={w.slad_url} target="_blank" rel="noreferrer" title="analiza, ranking, prompty, surowe odpowiedzi modelu, werdykty kontroli">
+            ślad diagnostyczny
+          </a>
+        )}
       </div>
+
+      {w.status_weryfikacji === 'niezweryfikowana' && (
+        <p className="ostrzezenie">
+          Kontrola odpowiedzi nie zadziałała. To szkic, nie odpowiedź systemu: przeczytaj cytowane przepisy albo przekaż
+          sprawę referentowi.
+        </p>
+      )}
+      {w.status_weryfikacji === 'ograniczona' && (
+        <p className="ostrzezenie">Odpowiedź nie rozstrzyga pytania wprost. Sprawdź cytaty albo przekaż sprawę referentowi.</p>
+      )}
 
       {w.przeglad && (
         <p className="cichy">
@@ -91,6 +127,18 @@ export default function OdpowiedzWidok({ w }: { w: Odpowiedz }) {
           {w.cytaty.map((j, i) => (
             <Cytat key={j.id} j={j} otwarty={i === 0} />
           ))}
+          {w.zrodla.length > 0 && (
+            <p className="cichy">
+              {w.zrodla
+                .map(
+                  (a) =>
+                    `${a.akt}: wersja ${a.wersja || 'nieoznaczona'}, obowiązuje od ${a.obowiazuje_od ?? 'nieoznaczone'} do ${a.obowiazuje_do ?? 'nadal'}`,
+                )
+                .join('; ')}
+              . Odpowiedź oparta na wersji aktu znajdującej się w indeksie; system nie potwierdza brzmienia obowiązującego w
+              innej dacie.
+            </p>
+          )}
         </>
       )}
 
