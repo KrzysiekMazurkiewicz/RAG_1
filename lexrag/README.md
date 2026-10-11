@@ -1,5 +1,7 @@
 # lexrag — pytania do ustawy z cytowaniem, model on-premise
 
+Repozytorium: https://github.com/KrzysiekMazurkiewicz/RAG_1 (prywatne, gałąź `main`).
+
 Wkładasz ustawę (PDF z ISAP), pytasz po ludzku, dostajesz odpowiedź opartą na konkretnym
 ustępie — z treścią przepisu wyświetloną **z indeksu, nie z modelu**. Wszystko działa lokalnie:
 parser, wyszukiwanie (BM25 + embeddingi + reranker) i model językowy przez Ollamę / llama.cpp / vLLM.
@@ -221,6 +223,25 @@ pip install -r requirements-web.txt
 uvicorn lexrag.web:app --host 0.0.0.0 --port 8090      # http://localhost:8090
 ```
 
+**Interfejs React** (`ui/`, Vite + TypeScript): trzy zakładki – *Pytanie* (pytanie, data „na dzień”, odpowiedź
+z cytatami, przyciski opinii dobrze / źle / nie wiem ze wskazaniem właściwego przepisu), *Opinie* (kolejka
+referenta: zatwierdź / odrzuć, frazy obowiązkowe, pobranie złotego zbioru z zatwierdzonych opinii), *Administracja*
+(stan silnika, wgrane akty z okresami obowiązywania, formularz wgrywania z postępem).
+
+```bash
+cd ui && npm install && npm run dev        # http://localhost:5173, wywołania /api idą do silnika na :8090
+cd ui && npm run build                     # ui/dist – FastAPI serwuje je pod "/" zamiast strony wbudowanej
+```
+
+Obraz Dockera buduje interfejs sam (etap `node:22-alpine` w `Dockerfile`). Gdy `ui/dist` nie istnieje, pod „/”
+działa prosta strona wbudowana w `lexrag/web.py`.
+
+**Opinie użytkowników** (`POST /api/opinia`, `GET /api/opinie?status=nowa`, `POST /api/opinie/{id}/przeglad`,
+`GET /api/opinie/eksport`): każda odpowiedź dostaje `id_odpowiedzi` i trafia do dziennika `data/odpowiedzi.jsonl`
+(ciągi 11 cyfr są maskowane); ocena „źle” wymaga wskazania właściwego przepisu albo komentarza; zatwierdzone przez
+referenta opinie eksportują się jako wiersze złotego zbioru. Docelowo te dane żyją w PostgreSQL aplikacji C#
+(patrz dokument architektury); silnik trzyma je w JSONL, żeby pętla działała od pierwszego dnia.
+
 Jedna strona: pytanie (z datą „na dzień” i opcjonalną analizą), odpowiedź z podstawą prawną renderowaną
 z indeksu, zdania usunięte przez bramki, czasy kroków; formularz wgrywania aktu (PDF/TXT/HTML/DOCX) lub
 dokumentu wewnętrznego (nagłówki Markdown/DOCX) z kodem, nazwą i okresem obowiązywania. Wgranie buduje
@@ -247,6 +268,16 @@ i embeddingi też na GPU, `LEXRAG_DEVICE=auto`). Dane trwałe w `./dane`: indeks
 cache modeli embeddingów. Na 6 GB VRAM mieści się w całości Qwen3 4B; Gemma 4 E4B częściowo przechodzi na CPU.
 Bez karty: usuń `runtime: nvidia` z obu usług, ustaw `LEXRAG_DEVICE=cpu` i zbuduj obraz z
 `--build-arg TORCH_INDEX=https://download.pytorch.org/whl/cpu`.
+
+## Model w Google Colab dla NAS-a z małą kartą (tylko akty publiczne)
+
+Gemma 4 12B potrzebuje ~10 GB pamięci karty, więc na RTX 3050 (6 GB) się nie mieści. Do testów interfejsu
+`colab/lexrag_serwer_modelu.ipynb` uruchamia Ollamę z tym modelem na karcie T4 w Colabie i wystawia ją tunelem
+(cloudflared, bez konta); wyszukiwanie, indeks i dokumenty zostają na NAS-ie, do Colaba lecą tylko prompty.
+Na NAS-ie w `.env`: `LEXRAG_LLM_BASE_URL=https://<adres>.trycloudflare.com/v1`, `LEXRAG_LLM_API=ollama`,
+`LEXRAG_LLM_MODEL=gemma4:12b`, potem `docker compose up -d lexrag`. Adres zmienia się przy każdym uruchomieniu,
+sesja żyje kilkanaście godzin, nie ma hasła – to narzędzie na czas testów, nie produkcja (regulamin Colaba zabrania
+stałego hostowania usług). Przy tym ustawieniu nie wgrywaj na NAS dokumentów wewnętrznych.
 
 ## Pomiar na GPU w Google Colab (tylko akty publiczne)
 

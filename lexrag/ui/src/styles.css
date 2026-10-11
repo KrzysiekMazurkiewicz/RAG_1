@@ -1,0 +1,86 @@
+:root {
+  --tlo: #f6f7f9;
+  --karta: #ffffff;
+  --tekst: #1d2330;
+  --cichy: #5c6675;
+  --linia: #d9dee6;
+  --akcent: #1f5fbf;
+  --akcent-tlo: #e8f0fc;
+  --ok: #1e7f4f;
+  --zle: #b3261e;
+  --uwaga: #8a5a00;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --tlo: #15181d;
+    --karta: #1e232b;
+    --tekst: #e8ebf0;
+    --cichy: #9aa4b2;
+    --linia: #333a45;
+    --akcent: #7aa7f0;
+    --akcent-tlo: #22304a;
+    --ok: #6fcf97;
+    --zle: #ff8a80;
+    --uwaga: #f0c674;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--tlo); color: var(--tekst); }
+.app { max-width: 980px; margin: 0 auto; padding: 16px; }
+.naglowek { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+h1 { margin: 0; font-size: 26px; }
+h3 { margin: 14px 0 6px; font-size: 15px; }
+.podtytul { margin: 2px 0 0; color: var(--cichy); }
+.stan-skrot { color: var(--cichy); font-size: 13px; }
+.kropka { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
+.kropka.ok { background: var(--ok); }
+.kropka.zle { background: var(--zle); }
+.zakladki { display: flex; gap: 6px; margin: 14px 0; border-bottom: 1px solid var(--linia); }
+.zakladki button { background: none; border: none; border-bottom: 2px solid transparent; padding: 8px 12px; color: var(--cichy); cursor: pointer; font-size: 15px; }
+.zakladki button.aktywna { color: var(--akcent); border-bottom-color: var(--akcent); }
+.karta { background: var(--karta); border: 1px solid var(--linia); border-radius: 10px; padding: 14px 16px; margin: 12px 0; }
+.formularz { display: flex; flex-direction: column; gap: 10px; }
+.pole { display: flex; flex-direction: column; gap: 4px; flex: 1 1 220px; }
+.pole.male { flex: 0 1 240px; }
+.pole > span { font-size: 12px; color: var(--cichy); }
+.pole-wiersz { display: flex; align-items: center; gap: 8px; }
+.wiersz { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+textarea, input, select { font: inherit; color: inherit; background: var(--tlo); border: 1px solid var(--linia); border-radius: 8px; padding: 8px 10px; width: 100%; }
+textarea { resize: vertical; }
+button { font: inherit; border: 1px solid var(--linia); background: var(--karta); color: var(--tekst); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover { border-color: var(--akcent); }
+button.glowny { background: var(--akcent); color: #fff; border-color: var(--akcent); }
+button.glowny:disabled, button:disabled { opacity: 0.55; cursor: default; }
+button.aktywna { background: var(--akcent-tlo); border-color: var(--akcent); color: var(--akcent); }
+button.link { border: none; background: none; color: var(--akcent); padding: 0 6px; text-decoration: underline; }
+.cichy { color: var(--cichy); font-size: 13px; }
+.ok { color: var(--ok); }
+.blad { color: var(--zle); }
+.ostrzezenie { color: var(--uwaga); margin: 0; }
+.znacznik { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; background: var(--akcent-tlo); color: var(--akcent); }
+.znacznik.odmowa, .znacznik.blad, .znacznik.ocena-zle { background: #fde8e6; color: var(--zle); }
+.znacznik.dopytanie { background: #fff4d6; color: var(--uwaga); }
+.znacznik.przeglad { background: #e9f6ef; color: var(--ok); }
+.znacznik.ocena-dobrze { background: #e9f6ef; color: var(--ok); }
+@media (prefers-color-scheme: dark) {
+  .znacznik.odmowa, .znacznik.blad, .znacznik.ocena-zle { background: #4a2626; }
+  .znacznik.dopytanie { background: #4a3d1f; }
+  .znacznik.przeglad, .znacznik.ocena-dobrze { background: #1f3a2c; }
+}
+.odpowiedz { font-size: 16px; margin: 10px 0; }
+.dopytanie { color: var(--uwaga); margin: 6px 0; }
+.cytat { border-left: 3px solid var(--akcent); padding: 4px 10px; margin: 6px 0; }
+.cytat summary { cursor: pointer; }
+.id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; background: var(--tlo); padding: 1px 5px; border-radius: 4px; }
+.tekst-przepisu { white-space: pre-wrap; margin: 6px 0; }
+.opinia { border-top: 1px solid var(--linia); margin-top: 12px; padding-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.formularz-opinii { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; }
+.lista-trafien { list-style: none; padding: 0; margin: 0; }
+.tabela { border-collapse: collapse; width: 100%; font-size: 14px; }
+.tabela th, .tabela td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--linia); vertical-align: top; }
+.tabela th { color: var(--cichy); font-weight: 500; white-space: nowrap; }
+.stopka { color: var(--cichy); font-size: 12.5px; margin: 20px 0 8px; }

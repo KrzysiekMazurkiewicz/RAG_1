@@ -1,6 +1,15 @@
 # LexRAG: aplikacja z interfejsem WWW. Model językowy działa w osobnym kontenerze (Ollama).
 # Domyślnie torch z CUDA (reranker i embeddingi na karcie; LEXRAG_DEVICE=auto). Obraz tylko na CPU:
 #   docker build --build-arg TORCH_INDEX=https://download.pytorch.org/whl/cpu -t lexrag .
+# etap 1: interfejs React (ui/) → statyczne pliki serwowane przez FastAPI pod "/"
+FROM node:22-alpine AS ui
+WORKDIR /ui
+COPY ui/package.json ui/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY ui/ ./
+RUN npm run build
+
+# etap 2: silnik (Python)
 FROM python:3.12-slim
 ARG TORCH_INDEX=https://download.pytorch.org/whl/cu124
 ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 HF_HOME=/opt/modele LEXRAG_DATA_DIR=/app/data LEXRAG_INDEX_DIR=/app/data/index
@@ -12,6 +21,7 @@ RUN pip install torch --index-url ${TORCH_INDEX} \
 COPY lexrag ./lexrag
 COPY scripts ./scripts
 COPY data/golden ./data/golden
+COPY --from=ui /ui/dist ./ui/dist
 EXPOSE 8090
 HEALTHCHECK --interval=60s --timeout=10s --start-period=120s CMD curl -fs http://localhost:8090/api/stan || exit 1
 CMD ["uvicorn", "lexrag.web:app", "--host", "0.0.0.0", "--port", "8090"]

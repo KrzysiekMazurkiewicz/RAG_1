@@ -67,3 +67,30 @@ def test_walidacja_wgrania(klient):
     assert r.status_code == 400
     r = klient.post("/api/wgraj", files={"plik": ("x.exe", b"abc", "application/octet-stream")}, data={"kod": "ok"})
     assert r.status_code == 400
+
+
+def test_opinie_od_zgloszenia_do_eksportu(klient):
+    with open(os.path.join(DANE, "ustawa_testowa.txt"), "rb") as f:
+        klient.post("/api/wgraj", files={"plik": ("ustawa.txt", f, "text/plain")},
+                    data={"kod": "test", "akt": "Ustawa testowa", "typ": "ustawa"})
+    _czekaj(klient)
+    w = klient.post("/api/pytanie", json={"pytanie": "za jaki okres można żądać zwrotu, PESEL 90010112345"}).json()
+    ident = w["id_odpowiedzi"]
+    assert klient.post("/api/opinia", json={"id_odpowiedzi": ident, "ocena": "zle"}).status_code == 400
+    assert klient.post("/api/opinia", json={"id_odpowiedzi": "nie-ma", "ocena": "dobrze"}).status_code == 404
+    assert klient.post("/api/opinia", json={"id_odpowiedzi": ident, "ocena": "zle",
+                                            "wlasciwy_przepis": ["test:nie:ma"]}).status_code == 400
+    r = klient.post("/api/opinia", json={"id_odpowiedzi": ident, "ocena": "zle",
+                                         "wlasciwy_przepis": ["test:art138:ust3"], "komentarz": "zły ustęp"})
+    assert r.status_code == 200, r.text
+    kolejka = klient.get("/api/opinie").json()
+    assert len(kolejka) == 1 and kolejka[0]["status"] == "nowa"
+    assert "90010112345" not in kolejka[0]["pytanie"] and "***********" in kolejka[0]["pytanie"]
+    oid = kolejka[0]["id"]
+    r = klient.post(f"/api/opinie/{oid}/przeglad", json={"status": "zatwierdzona", "musi_zawierac": ["3 lata"],
+                                                        "przegladajacy": "referent"})
+    assert r.status_code == 200
+    assert klient.get("/api/opinie").json() == []
+    assert klient.get("/api/opinie?status=zatwierdzona").json()[0]["musi_zawierac"] == ["3 lata"]
+    e = klient.get("/api/opinie/eksport").json()
+    assert e["liczba"] == 1 and "test:art138:ust3" in e["jsonl"] and "3 lata" in e["jsonl"]

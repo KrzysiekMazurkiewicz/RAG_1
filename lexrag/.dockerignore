@@ -10,3 +10,5 @@ dane
 docs
 colab
 *.zip
+ui/node_modules
+ui/dist

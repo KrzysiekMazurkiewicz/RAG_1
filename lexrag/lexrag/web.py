@@ -8,12 +8,14 @@ Jeden wspólny indeks dla wszystkich wgranych aktów (data/units/*.jsonl); wgran
 from __future__ import annotations
 
 import glob
+import json
 import logging
 import os
 import re
 import shutil
 import threading
-from datetime import date
+import uuid
+from datetime import date, datetime
 import time
 from contextlib import asynccontextmanager
 from dataclasses import asdict
@@ -153,7 +155,14 @@ def pytanie(p: Pytanie) -> dict:
     # bez daty pytamy o stan prawny na dziś – przy kilku wersjach aktu w indeksie wybiera to bieżącą
     na_dzien = (p.na_dzien or "").strip() or date.today().isoformat()
     w = odpowiedz(idx, tresc, na_dzien=na_dzien, analiza=p.analiza)
+    ident = uuid.uuid4().hex
+    _dopisz("odpowiedzi.jsonl", {
+        "id": ident, "czas": datetime.now().isoformat(timespec="seconds"), "pytanie": _maskuj(tresc),
+        "na_dzien": na_dzien, "tryb": w.tryb, "tekst": w.tekst, "cytowane": [j.id for j in w.cytaty],
+        "kontekst": [j.id for j in w.kontekst], "model": KONFIG.llm_model, "indeks": KATALOG_INDEKSU,
+        "przeglad": w.przeglad, "czasy": w.czasy})
     return {
+        "id_odpowiedzi": ident,
         "tryb": w.tryb, "tekst": w.tekst, "uwagi": w.uwagi, "czasy": w.czasy, "warianty": w.warianty,
         "brakujace_parametry": w.brakujace_parametry, "zdania_usuniete": w.zdania_usuniete,
         "przeglad": w.przeglad, "dopytanie": w.dopytanie,
@@ -197,6 +206,135 @@ async def wgraj(plik: UploadFile = File(...), kod: str = Form(...), akt: str = F
                      args=(sciezka, kod, akt.strip(), typ, obowiazuje_od.strip() or None,
                            obowiazuje_do.strip() or None, wersja.strip())).start()
     return {"status": "w toku", "kod": kod}
+
+
+# --- opinie użytkowników (dziennik odpowiedzi, zgłoszenia, przegląd referenta) ----------------
+_RE_PESEL = re.compile(r"(?<!\d)\d{11}(?!\d)")
+OCENY = ("dobrze", "zle", "nie_wiem")
+STATUSY = ("nowa", "zatwierdzona", "odrzucona")
+
+
+def _maskuj(tekst: str) -> str:
+    """Pytania mogą zawierać dane osobowe: ciągi 11 cyfr (PESEL) nie trafiają do dziennika."""
+    return _RE_PESEL.sub("***********", tekst)
+
+
+def _plik_danych(nazwa: str) -> str:
+    os.makedirs(KATALOG_DANYCH, exist_ok=True)
+    return os.path.join(KATALOG_DANYCH, nazwa)
+
+
+def _dopisz(nazwa: str, rekord: dict) -> None:
+    with STAN.blokada:
+        with open(_plik_danych(nazwa), "a", encoding="utf-8") as f:
+            f.write(json.dumps(rekord, ensure_ascii=False) + "\n")
+
+
+def _wczytaj(nazwa: str) -> list[dict]:
+    sciezka = _plik_danych(nazwa)
+    if not os.path.exists(sciezka):
+        return []
+    with open(sciezka, encoding="utf-8") as f:
+        return [json.loads(l) for l in f if l.strip()]
+
+
+def _zapisz_wszystkie(nazwa: str, rekordy: list[dict]) -> None:
+    with STAN.blokada:
+        with open(_plik_danych(nazwa), "w", encoding="utf-8") as f:
+            for r in rekordy:
+                f.write(json.dumps(r, ensure_ascii=False) + "\n")
+
+
+class Opinia(BaseModel):
+    id_odpowiedzi: str
+    ocena: str
+    wlasciwy_przepis: list[str] = []
+    komentarz: str = ""
+    uzytkownik: str = ""
+
+
+class Przeglad(BaseModel):
+    status: str
+    wlasciwy_przepis: Optional[list[str]] = None
+    musi_zawierac: list[str] = []
+    przegladajacy: str = ""
+
+
+@app.post("/api/opinia")
+def opinia(o: Opinia) -> dict:
+    """Ocena odpowiedzi: dobrze / zle / nie_wiem; przy „zle” trzeba wskazać właściwy przepis albo dopisać komentarz."""
+    if o.ocena not in OCENY:
+        raise HTTPException(400, "Ocena: dobrze, zle albo nie_wiem.")
+    odp = next((r for r in _wczytaj("odpowiedzi.jsonl") if r["id"] == o.id_odpowiedzi), None)
+    if odp is None:
+        raise HTTPException(404, "Nie ma odpowiedzi o tym identyfikatorze.")
+    przepisy = [p.strip() for p in o.wlasciwy_przepis if p.strip()]
+    if o.ocena == "zle" and not przepisy and not o.komentarz.strip():
+        raise HTTPException(400, "Przy ocenie „zle” wskaż właściwy przepis albo dopisz komentarz.")
+    idx = STAN.indeks
+    if idx is not None:
+        brak = [p for p in przepisy if p not in idx.jednostki]
+        if brak:
+            raise HTTPException(400, f"Nieznane id przepisów: {', '.join(brak)}")
+    rekord = {"id": uuid.uuid4().hex, "czas": datetime.now().isoformat(timespec="seconds"),
+              "uzytkownik": o.uzytkownik.strip(), "id_odpowiedzi": o.id_odpowiedzi, "ocena": o.ocena,
+              "wlasciwy_przepis": przepisy, "komentarz": _maskuj(o.komentarz.strip()), "status": "nowa",
+              "musi_zawierac": [], "przegladajacy": "", "czas_przegladu": ""}
+    _dopisz("opinie.jsonl", rekord)
+    return {"id": rekord["id"], "status": "nowa"}
+
+
+@app.get("/api/opinie")
+def opinie(status: str = "nowa") -> list[dict]:
+    """Kolejka przeglądu: opinie o danym statusie (domyślnie nowe) razem z pytaniem i odpowiedzią."""
+    if status not in STATUSY + ("wszystkie",):
+        raise HTTPException(400, "Status: nowa, zatwierdzona, odrzucona albo wszystkie.")
+    odpowiedzi = {r["id"]: r for r in _wczytaj("odpowiedzi.jsonl")}
+    out = []
+    for o in reversed(_wczytaj("opinie.jsonl")):
+        if status != "wszystkie" and o["status"] != status:
+            continue
+        odp = odpowiedzi.get(o["id_odpowiedzi"], {})
+        out.append({**o, "pytanie": odp.get("pytanie", ""), "odpowiedz": odp.get("tekst", ""),
+                    "cytowane": odp.get("cytowane", []), "tryb": odp.get("tryb", ""), "model": odp.get("model", "")})
+    return out
+
+
+@app.post("/api/opinie/{ident}/przeglad")
+def przeglad(ident: str, p: Przeglad) -> dict:
+    """Referent zatwierdza albo odrzuca opinię, może poprawić przepis i dopisać frazy, które muszą paść."""
+    if p.status not in ("zatwierdzona", "odrzucona"):
+        raise HTTPException(400, "Status: zatwierdzona albo odrzucona.")
+    rekordy = _wczytaj("opinie.jsonl")
+    rekord = next((r for r in rekordy if r["id"] == ident), None)
+    if rekord is None:
+        raise HTTPException(404, "Nie ma takiej opinii.")
+    if p.wlasciwy_przepis is not None:
+        rekord["wlasciwy_przepis"] = [x.strip() for x in p.wlasciwy_przepis if x.strip()]
+    if p.status == "zatwierdzona" and rekord["ocena"] == "zle" and not rekord["wlasciwy_przepis"]:
+        raise HTTPException(400, "Zatwierdzenie zgłoszenia „zle” wymaga wskazania właściwego przepisu.")
+    rekord.update(status=p.status, musi_zawierac=[f.strip() for f in p.musi_zawierac if f.strip()],
+                  przegladajacy=p.przegladajacy.strip(), czas_przegladu=datetime.now().isoformat(timespec="seconds"))
+    _zapisz_wszystkie("opinie.jsonl", rekordy)
+    return {"id": ident, "status": p.status}
+
+
+@app.get("/api/opinie/eksport")
+def eksport_opinii() -> dict:
+    """Zatwierdzone opinie jako wiersze złotego zbioru: „zle” daje wskazany przepis, „dobrze” – cytowane przepisy."""
+    odpowiedzi = {r["id"]: r for r in _wczytaj("odpowiedzi.jsonl")}
+    wiersze = []
+    for o in _wczytaj("opinie.jsonl"):
+        if o["status"] != "zatwierdzona":
+            continue
+        odp = odpowiedzi.get(o["id_odpowiedzi"])
+        if not odp:
+            continue
+        oczekiwane = o["wlasciwy_przepis"] or (odp.get("cytowane", []) if o["ocena"] == "dobrze" else [])
+        if not oczekiwane:
+            continue
+        wiersze.append({"pytanie": odp["pytanie"], "oczekiwane": oczekiwane, "musi_zawierac": o.get("musi_zawierac", [])})
+    return {"liczba": len(wiersze), "jsonl": "\n".join(json.dumps(w, ensure_ascii=False) for w in wiersze)}
 
 
 # --- strona -----------------------------------------------------------------------------
@@ -310,6 +448,12 @@ stan();
 """
 
 
-@app.get("/", response_class=HTMLResponse)
-def strona() -> str:
-    return STRONA
+KATALOG_UI = os.environ.get("LEXRAG_UI_DIR", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                                           "ui", "dist"))
+if os.path.isfile(os.path.join(KATALOG_UI, "index.html")):
+    from fastapi.staticfiles import StaticFiles
+    app.mount("/", StaticFiles(directory=KATALOG_UI, html=True), name="ui")   # React (ui/): montowane na końcu, po /api
+else:
+    @app.get("/", response_class=HTMLResponse)
+    def strona() -> str:
+        return STRONA
