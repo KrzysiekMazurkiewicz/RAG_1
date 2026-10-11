@@ -20,6 +20,9 @@ def klient(tmp_path, monkeypatch):
     monkeypatch.setattr(web, "Z_EMBEDDINGAMI", False)
     monkeypatch.setattr(web.STAN, "indeks", None)
     monkeypatch.setattr(web.STAN, "zadanie", {"status": "bezczynny", "komunikat": "", "kod": ""})
+    monkeypatch.setattr(web, "llm_dostepny", lambda: False)            # testy API bez modelu, nawet gdy Ollama działa
+    from lexrag import generate
+    monkeypatch.setattr(generate, "llm_dostepny", lambda: False)
     with TestClient(web.app) as k:
         yield k
 

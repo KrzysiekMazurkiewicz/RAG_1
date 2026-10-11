@@ -2,6 +2,7 @@
 żeby sprawdzić orkiestrację: dopytanie, cytaty renderowane z indeksu, odrzucanie zdań bez
 pokrycia, odmowa. Embeddingi i reranker są wyłączone (BM25 wystarcza na fixture)."""
 import json
+import dataclasses
 import os
 
 import pytest
@@ -57,6 +58,7 @@ def _mock_llm(monkeypatch, odpowiedzi):
 
     monkeypatch.setattr(generate, "czat_json", fake_czat_json)
     monkeypatch.setattr(generate, "llm_dostepny", lambda: True)
+    monkeypatch.setattr(generate, "KONFIG", dataclasses.replace(generate.KONFIG, pomin_analize=False))  # niezależnie od LEXRAG_SKIP_ANALYSIS
 
 
 def test_brak_parametrow_daje_odpowiedz_przegladowa_z_dopytaniem(indeks, monkeypatch):
@@ -94,6 +96,7 @@ def test_pytanie_haslowe_bez_analizy_idzie_w_tryb_przegladowy(indeks, monkeypatc
 
     monkeypatch.setattr(generate, "czat_json", fake)
     monkeypatch.setattr(generate, "llm_dostepny", lambda: True)
+    monkeypatch.setattr(generate, "KONFIG", dataclasses.replace(generate.KONFIG, pomin_analize=False))  # niezależnie od LEXRAG_SKIP_ANALYSIS
     w = generate.odpowiedz(indeks, "wiek świadczenie urodzeni po 1948", uzyj_emb=False, uzyj_reranker=False, analiza=False)
     assert w.tryb == "odpowiedz" and w.przeglad and w.dopytanie == ""
     assert "PRZEGLĄDOWO" in zebrane[0]            # prompt odpowiedzi dostał dopisek przeglądowy
@@ -174,6 +177,7 @@ def test_weryfikacja_dopytuje_o_brakujace_werdykty(indeks, monkeypatch):
     ]
     monkeypatch.setattr(generate, "czat_json", fake_czat_json)
     monkeypatch.setattr(generate, "llm_dostepny", lambda: True)
+    monkeypatch.setattr(generate, "KONFIG", dataclasses.replace(generate.KONFIG, pomin_analize=False))  # niezależnie od LEXRAG_SKIP_ANALYSIS
     w = generate.odpowiedz(indeks, "za jaki okres można żądać zwrotu", uzyj_emb=False, uzyj_reranker=False)
     assert w.tryb == "odpowiedz"
     assert w.tekst == ("Zwrotu można żądać za okres nie dłuższy niż 3 lata. "
