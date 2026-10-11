@@ -424,3 +424,18 @@ Wnioski z dwóch ustaw:
   złą podstawę (art. 13 ust. 2 zamiast art. 7). Zbiór jest w porządku: 12B i 14B rozwiązały go w 100 %.
 * **Saluki 27B** na zasiłkowej 95 % (2 błędy) – 2-bitowa kompresja kosztuje; 12B w Q4 jest lepszy i dwa razy szybszy.
 * Wyszukiwanie przy dwóch ustawach: recall@10 100 % dla obu zbiorów; recall@3 97,5 % (zasiłkowa) i 87,5 % (FUS).
+
+**Pytania hasłowe w trybie przeglądowym** (L4, zbiory `fus_haslowe` i `zas_haslowe` po 12 pytań; odczytane do
+momentu, w którym sesja Colaba straciła łączność, więc bez Qwen3 8B na zasiłkach i bez E4B):
+
+| model | FUS hasłowe: precyzja / pokrycie | zasiłkowa hasłowe: precyzja / pokrycie | s / pytanie |
+|---|---|---|---|
+| Gemma 4 12B, bez analizy pytania | 91,7 % / 100 % | 91,7 % / 100 % | 20 |
+| Gemma 4 12B, z analizą pytania | 91,7 % / 100 % | 91,7 % / 100 % | 25 |
+| Qwen3 8B, bez analizy | 75 % / 100 % | – | 31 |
+
+Jedyne błędy Gemma 4 12B to dwa pytania, przy których wyszukiwanie nie podało właściwego przepisu („kapitał
+początkowy”: art. 173 ust. 1 na 14. miejscu, „okres zasiłkowy”: art. 8 ust. 1 poza listą), czyli wyszukiwanie
+(recall@3 dla pytań hasłowych 66,7 % wobec 87,5–100 % dla pytań pełnych), nie odpowiedź przeglądowa. To jest
+miejsce na opisy kontekstowe. Qwen3 8B przy pytaniach hasłowych cytuje sąsiednie ustępy zamiast reguły i pisze
+długo (9 zdań usuniętych na 12 pytań).
