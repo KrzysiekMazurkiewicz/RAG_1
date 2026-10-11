@@ -44,8 +44,10 @@ h3 { margin: 14px 0 6px; font-size: 15px; }
 .zakladki button.aktywna { color: var(--akcent); border-bottom-color: var(--akcent); }
 .karta { background: var(--karta); border: 1px solid var(--linia); border-radius: 10px; padding: 14px 16px; margin: 12px 0; }
 .formularz { display: flex; flex-direction: column; gap: 10px; }
-.pole { display: flex; flex-direction: column; gap: 4px; flex: 1 1 220px; }
-.pole.male { flex: 0 1 240px; }
+.pole { display: flex; flex-direction: column; gap: 4px; flex: 0 0 auto; }
+.wiersz > .pole { flex: 1 1 220px; }
+.wiersz > .pole.male { flex: 0 1 240px; }
+.wiersz > .pole-wiersz { flex: 1 1 260px; max-width: 460px; }
 .pole > span { font-size: 12px; color: var(--cichy); }
 .pole-wiersz { display: flex; align-items: center; gap: 8px; }
 .wiersz { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
