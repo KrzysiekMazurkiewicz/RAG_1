@@ -9,7 +9,7 @@ Wynik zapisywany jest z powrotem do JSONL (pole `opis`), więc indeks budujesz p
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Callable, Optional
 
 from .config import KONFIG
 from .llm import BrakLLM, czat_json
@@ -44,18 +44,23 @@ def opisz(j: Jednostka, rodzic: Optional[Jednostka]) -> str:
     return (w.get("opis") or "").strip()
 
 
-def kontekstualizuj_plik(sciezka: str, limit: Optional[int] = None, nadpisz: bool = False) -> int:
+def kontekstualizuj_plik(sciezka: str, limit: Optional[int] = None, nadpisz: bool = False,
+                         postep: Optional[Callable[[int, int], None]] = None) -> int:
+    """Dopisuje opisy do jednostek szukalnych bez opisu (albo wszystkich przy nadpisz); `postep(zrobione, razem)`
+    woła się po każdej jednostce, żeby interfejs mógł pokazać licznik."""
     jednostki = wczytaj_jsonl(sciezka)
     mapa = {j.id: j for j in jednostki}
+    do_zrobienia = [j for j in jednostki if j.szukalny and (nadpisz or not j.opis)]
+    razem = len(do_zrobienia) if limit is None else min(limit, len(do_zrobienia))
     zrobione = 0
-    for j in jednostki:
-        if not j.szukalny or (j.opis and not nadpisz):
-            continue
+    for j in do_zrobienia:
         if limit is not None and zrobione >= limit:
             break
         try:
             j.opis = opisz(j, mapa.get(j.rodzic) if j.rodzic else None)
             zrobione += 1
+            if postep:
+                postep(zrobione, razem)
             if zrobione % 25 == 0:
                 log.info("opisy: %d", zrobione)
                 zapisz_jsonl(jednostki, sciezka)  # zapis częściowy – przerwanie nic nie traci

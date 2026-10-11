@@ -199,6 +199,12 @@ pozwalają modelowi odróżnić, z której ustawy cytuje.
 * Po `wgraj` zawsze: `show kod:art1`, `show` ustępu z liczbami, które znasz, i kilka pytań w `chat --bez-llm`.
 * Tabele w załącznikach trafiają do indeksu jako płaski tekst — pytania „z tabeli” wymagają innego podejścia.
 * Rozporządzenia (`§ 1.`) parsują się tak samo jak ustawy.
+* **Opisy kontekstowe** (contextual retrieval): model dopisuje do każdego przepisu jedno zdanie słowami
+  pracownika („kiedy można…”, „ile wynosi…”); zdanie trafia do BM25 i embeddingów, nigdy do odpowiedzi.
+  W panelu *Administracja* to pole wyboru przy wgrywaniu (domyślnie zaznaczone, gdy model odpowiada) albo przycisk
+  **Opisz przepisy** przy już wgranym akcie; z konsoli `contextualize data/units/kod.jsonl` i ponowne `index`.
+  Koszt: ok. 4 s na przepis przy modelu na karcie (ustawa o 300 przepisach ≈ 20 min). Definicje ustawowe dostają
+  opis z parsera i nie są wysyłane do modelu.
 
 ## Procedury wewnętrzne
 
@@ -226,7 +232,8 @@ uvicorn lexrag.web:app --host 0.0.0.0 --port 8090      # http://localhost:8090
 **Interfejs React** (`ui/`, Vite + TypeScript): trzy zakładki – *Pytanie* (pytanie, data „na dzień”, odpowiedź
 z cytatami, przyciski opinii dobrze / źle / nie wiem ze wskazaniem właściwego przepisu), *Opinie* (kolejka
 referenta: zatwierdź / odrzuć, frazy obowiązkowe, pobranie złotego zbioru z zatwierdzonych opinii), *Administracja*
-(stan silnika, wgrane akty z okresami obowiązywania, formularz wgrywania z postępem).
+(stan silnika, wgrane akty z okresami obowiązywania i licznikiem opisów kontekstowych, przycisk *Opisz przepisy*,
+formularz wgrywania z polem „po wgraniu model dopisze opisy kontekstowe” i postępem zadania).
 
 ```bash
 cd ui && npm install && npm run dev        # http://localhost:5173, wywołania /api idą do silnika na :8090
@@ -246,7 +253,9 @@ Jedna strona: pytanie (z datą „na dzień” i opcjonalną analizą), odpowied
 z indeksu, zdania usunięte przez bramki, czasy kroków; formularz wgrywania aktu (PDF/TXT/HTML/DOCX) lub
 dokumentu wewnętrznego (nagłówki Markdown/DOCX) z kodem, nazwą i okresem obowiązywania. Wgranie buduje
 w tle jeden wspólny indeks ze wszystkich plików `data/units/*.jsonl`. API: `GET /api/stan`,
-`POST /api/pytanie {"pytanie", "na_dzien", "analiza"}`, `POST /api/wgraj` (multipart), `GET /api/jednostka/{id}`.
+`POST /api/pytanie {"pytanie", "na_dzien", "analiza"}`, `POST /api/wgraj` (multipart; pole `opisy=1` każe
+modelowi dopisać opisy kontekstowe przed budową indeksu), `POST /api/opisz/{kod}` (opisy dla wgranego już aktu,
+potem przebudowa indeksu; 409 bez modelu), `GET /api/jednostka/{id}`.
 Odpowiedź niesie też `przeglad` (true dla pytań hasłowych) i `dopytanie` (pytanie doprecyzowujące).
 Pytanie bez `na_dzien` liczy się na dziś: gdy w indeksie są dwie wersje aktu (różne kody, okresy obowiązywania
 `--obowiazuje-od/--obowiazuje-do`), odpowiada bieżąca, a z datą ta, która obowiązywała w tym dniu.

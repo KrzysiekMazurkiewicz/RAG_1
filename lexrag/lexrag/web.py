@@ -78,14 +78,49 @@ def _jednostka_json(j) -> dict:
 def _akty(idx: Indeks) -> list[dict]:
     akty: dict[str, dict] = {}
     for j in idx.jednostki.values():
-        a = akty.setdefault(j.akt_kod, {"kod": j.akt_kod, "akt": j.akt, "jednostek": 0,
+        a = akty.setdefault(j.akt_kod, {"kod": j.akt_kod, "akt": j.akt, "jednostek": 0, "szukalnych": 0, "opisy": 0,
                                          "obowiazuje_od": j.obowiazuje_od, "obowiazuje_do": j.obowiazuje_do})
         a["jednostek"] += 1
+        if j.szukalny:
+            a["szukalnych"] += 1
+            if j.opis:
+                a["opisy"] += 1
     return sorted(akty.values(), key=lambda a: a["kod"])
 
 
+def _opisz_jednostki(kod: str, out: str) -> int:
+    """Opisy kontekstowe modelem (contextual retrieval) dla jednostek bez opisu; licznik w STAN.zadanie."""
+    from .contextualize import kontekstualizuj_plik
+
+    def postep(n: int, razem: int) -> None:
+        STAN.zadanie.update(komunikat=f"{kod}: opisy kontekstowe {n}/{razem} (model {KONFIG.llm_model})")
+
+    return kontekstualizuj_plik(out, postep=postep)
+
+
+def _przebuduj_indeks(kod: str, komunikat: str) -> None:
+    katalog_units = os.path.join(KATALOG_DANYCH, "units")
+    STAN.zadanie.update(komunikat=f"{kod}: {komunikat}, buduję indeks (embeddingi)…")
+    pliki = sorted(glob.glob(os.path.join(katalog_units, "*.jsonl")))
+    idx = Indeks.zbuduj(pliki, KATALOG_INDEKSU, z_embeddingami=Z_EMBEDDINGAMI)
+    with STAN.blokada:
+        STAN.indeks = idx
+    STAN.zadanie = {"status": "gotowe", "kod": kod,
+                    "komunikat": f"{kod}: {komunikat}; indeks: {len(idx.jednostki)} jednostek z {len(pliki)} aktów"}
+
+
+def _zadanie_opisz(kod: str) -> None:
+    try:
+        out = os.path.join(KATALOG_DANYCH, "units", f"{kod}.jsonl")
+        n = _opisz_jednostki(kod, out)
+        _przebuduj_indeks(kod, f"{n} opisów kontekstowych")
+    except Exception as e:
+        log.exception("Opisy %s nieudane", kod)
+        STAN.zadanie = {"status": "blad", "kod": kod, "komunikat": f"{type(e).__name__}: {e}"}
+
+
 def _zadanie_wgraj(sciezka: str, kod: str, akt: str, typ: str,
-                   od: Optional[str], do: Optional[str], wersja: str) -> None:
+                   od: Optional[str], do: Optional[str], wersja: str, opisy: bool = False) -> None:
     try:
         katalog_units = os.path.join(KATALOG_DANYCH, "units")
         os.makedirs(katalog_units, exist_ok=True)
@@ -111,14 +146,13 @@ def _zadanie_wgraj(sciezka: str, kod: str, akt: str, typ: str,
             raise ValueError("za mało jednostek – ustawa musi mieć 'Art. N.' na początku linii, "
                              "dokument wewnętrzny nagłówki Markdown")
         zapisz_jsonl(jednostki, out)
-        STAN.zadanie.update(komunikat=f"{kod}: {len(jednostki)} jednostek, buduję indeks (embeddingi)…")
-        pliki = sorted(glob.glob(os.path.join(katalog_units, "*.jsonl")))
-        idx = Indeks.zbuduj(pliki, KATALOG_INDEKSU, z_embeddingami=Z_EMBEDDINGAMI)
-        with STAN.blokada:
-            STAN.indeks = idx
-        STAN.zadanie = {"status": "gotowe", "kod": kod,
-                        "komunikat": f"{kod}: {len(jednostki)} jednostek ({st}); indeks: "
-                                     f"{len(idx.jednostki)} jednostek z {len(pliki)} aktów"}
+        opis_info = ""
+        if opisy:
+            if llm_dostepny():
+                opis_info = f", {_opisz_jednostki(kod, out)} opisów kontekstowych"
+            else:
+                opis_info = ", opisy pominięte (brak modelu)"
+        _przebuduj_indeks(kod, f"{len(jednostki)} jednostek ({st}){opis_info}")
     except Exception as e:
         log.exception("Wgrywanie %s nieudane", kod)
         STAN.zadanie = {"status": "blad", "kod": kod, "komunikat": f"{type(e).__name__}: {e}"}
@@ -185,7 +219,7 @@ def jednostka(ident: str) -> dict:
 @app.post("/api/wgraj")
 async def wgraj(plik: UploadFile = File(...), kod: str = Form(...), akt: str = Form(""),
                 typ: str = Form("ustawa"), obowiazuje_od: str = Form(""), obowiazuje_do: str = Form(""),
-                wersja: str = Form("")) -> dict:
+                wersja: str = Form(""), opisy: str = Form("")) -> dict:
     kod = kod.strip().lower()
     if not re.fullmatch(r"[a-z0-9_]{1,24}", kod):
         raise HTTPException(400, "Kod aktu: małe litery, cyfry i podkreślenie, do 24 znaków.")
@@ -204,7 +238,23 @@ async def wgraj(plik: UploadFile = File(...), kod: str = Form(...), akt: str = F
     STAN.zadanie = {"status": "w toku", "kod": kod, "komunikat": f"parsowanie {plik.filename}…", "start": time.time()}
     threading.Thread(target=_zadanie_wgraj, daemon=True,
                      args=(sciezka, kod, akt.strip(), typ, obowiazuje_od.strip() or None,
-                           obowiazuje_do.strip() or None, wersja.strip())).start()
+                           obowiazuje_do.strip() or None, wersja.strip(),
+                           opisy.strip().lower() in ("1", "true", "on", "tak"))).start()
+    return {"status": "w toku", "kod": kod}
+
+
+@app.post("/api/opisz/{kod}")
+def opisz(kod: str) -> dict:
+    """Opisy kontekstowe modelem dla wgranego już aktu (jednostki bez opisu), potem przebudowa indeksu."""
+    kod = kod.strip().lower()
+    if not os.path.exists(os.path.join(KATALOG_DANYCH, "units", f"{kod}.jsonl")):
+        raise HTTPException(404, "Nie ma takiego aktu.")
+    if not llm_dostepny():
+        raise HTTPException(409, "Brak modelu – opisy kontekstowe pisze model (LEXRAG_LLM_MODEL).")
+    if STAN.zadanie.get("status") == "w toku":
+        raise HTTPException(409, "Trwa inne zadanie – poczekaj, aż się skończy.")
+    STAN.zadanie = {"status": "w toku", "kod": kod, "komunikat": f"{kod}: opisy kontekstowe…", "start": time.time()}
+    threading.Thread(target=_zadanie_opisz, daemon=True, args=(kod,)).start()
     return {"status": "w toku", "kod": kod}
 
 

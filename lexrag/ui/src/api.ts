@@ -4,6 +4,8 @@ export interface Akt {
   kod: string
   akt: string
   jednostek: number
+  szukalnych: number
+  opisy: number
   obowiazuje_od: string | null
   obowiazuje_do: string | null
 }
@@ -103,6 +105,9 @@ export const api = {
   jednostka: (id: string) => fetch(`/api/jednostka/${encodeURIComponent(id)}`).then((r) => sprawdz<Jednostka>(r)),
 
   wgraj: (dane: FormData) => fetch('/api/wgraj', { method: 'POST', body: dane }).then((r) => sprawdz<Zadanie>(r)),
+
+  opisz: (kod: string) =>
+    fetch(`/api/opisz/${encodeURIComponent(kod)}`, { method: 'POST' }).then((r) => sprawdz<Zadanie>(r)),
 
   opinia: (dane: { id_odpowiedzi: string; ocena: string; wlasciwy_przepis: string[]; komentarz: string }) =>
     fetch('/api/opinia', {

@@ -4,7 +4,9 @@ import { api, type Stan } from './api'
 export default function Administracja({ stan, odswiez }: { stan: Stan | null; odswiez: () => Promise<void> }) {
   const [komunikat, setKomunikat] = useState('')
   const [wysylam, setWysylam] = useState(false)
+  const [zOpisami, setZOpisami] = useState(true)
   const wToku = stan?.zadanie.status === 'w toku'
+  const jestModel = stan?.llm.dostepny ?? false
 
   useEffect(() => {
     if (!wToku) return
@@ -25,6 +27,17 @@ export default function Administracja({ stan, odswiez }: { stan: Stan | null; od
       setKomunikat(`Błąd: ${(err as Error).message}`)
     } finally {
       setWysylam(false)
+    }
+  }
+
+  const opisz = async (kod: string) => {
+    setKomunikat('')
+    try {
+      await api.opisz(kod)
+      setKomunikat(`Model pisze opisy kontekstowe dla aktu ${kod}; postęp w polu „zadanie”. Po zakończeniu indeks przebuduje się sam.`)
+      await odswiez()
+    } catch (err) {
+      setKomunikat(`Błąd: ${(err as Error).message}`)
     }
   }
 
@@ -65,6 +78,7 @@ export default function Administracja({ stan, odswiez }: { stan: Stan | null; od
         ) : (
           <p className="cichy">łączę…</p>
         )}
+        {komunikat && <p className={komunikat.startsWith('Błąd') ? 'blad' : 'ok'}>{komunikat}</p>}
       </div>
 
       <div className="karta">
@@ -75,9 +89,11 @@ export default function Administracja({ stan, odswiez }: { stan: Stan | null; od
               <tr>
                 <th>kod</th>
                 <th>nazwa</th>
-                <th>jednostek</th>
+                <th>przepisów</th>
+                <th>opisy kontekstowe</th>
                 <th>obowiązuje od</th>
                 <th>obowiązuje do</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -85,9 +101,23 @@ export default function Administracja({ stan, odswiez }: { stan: Stan | null; od
                 <tr key={a.kod}>
                   <td className="id">{a.kod}</td>
                   <td>{a.akt}</td>
-                  <td>{a.jednostek}</td>
+                  <td>{a.szukalnych}</td>
+                  <td>
+                    {a.opisy} / {a.szukalnych}
+                  </td>
                   <td>{a.obowiazuje_od ?? '—'}</td>
                   <td>{a.obowiazuje_do ?? 'nadal'}</td>
+                  <td>
+                    {a.opisy < a.szukalnych && (
+                      <button
+                        onClick={() => void opisz(a.kod)}
+                        disabled={wToku || !jestModel}
+                        title={jestModel ? 'model dopisze jedno zdanie opisu do każdego przepisu bez opisu (ok. 4 s na przepis na karcie)' : 'wymaga działającego modelu'}
+                      >
+                        Opisz przepisy
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -95,6 +125,11 @@ export default function Administracja({ stan, odswiez }: { stan: Stan | null; od
         ) : (
           <p className="cichy">Nic jeszcze nie wgrano.</p>
         )}
+        <p className="cichy">
+          Opisy kontekstowe to jedno zdanie na przepis, pisane przez model słowami pracownika („kiedy można…”, „ile
+          wynosi…”). Trafiają do wyszukiwania, nie do odpowiedzi; poprawiają trafność dla pytań hasłowych. Czas: około 4 s
+          na przepis przy modelu na karcie.
+        </p>
       </div>
 
       <form className="karta formularz" onSubmit={wyslij}>
@@ -133,11 +168,23 @@ export default function Administracja({ stan, odswiez }: { stan: Stan | null; od
             <span>Wersja (etykieta)</span>
             <input name="wersja" placeholder="tj. Dz.U. 2026 poz. 854" />
           </label>
+        </div>
+        <div className="wiersz">
+          <label className="pole-wiersz" title={jestModel ? '' : 'wymaga działającego modelu'}>
+            <input
+              type="checkbox"
+              name="opisy"
+              value="1"
+              disabled={!jestModel}
+              checked={zOpisami && jestModel}
+              onChange={(e) => setZOpisami(e.target.checked)}
+            />
+            po wgraniu model dopisze opisy kontekstowe do przepisów (ok. 4 s na przepis; dla ustawy 100 artykułów około 20 minut)
+          </label>
           <button type="submit" className="glowny" disabled={wysylam || wToku}>
-            {wToku ? 'trwa wgrywanie…' : wysylam ? 'wysyłam…' : 'Wgraj'}
+            {wToku ? 'trwa zadanie…' : wysylam ? 'wysyłam…' : 'Wgraj'}
           </button>
         </div>
-        {komunikat && <p className={komunikat.startsWith('Błąd') ? 'blad' : 'ok'}>{komunikat}</p>}
         <p className="cichy">
           Nowa wersja tego samego aktu dostaje nowy kod (np. zas_2027), a stara datę „obowiązuje do”. Po wgraniu
           sprawdź raport w polu „zadanie” i otwórz kilka przepisów, zanim udostępnisz akt użytkownikom.

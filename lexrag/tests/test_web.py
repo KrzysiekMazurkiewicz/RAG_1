@@ -63,6 +63,10 @@ def test_wgranie_ustawy_i_dokumentu_oraz_pytanie(klient):
     assert w["trafienia"][0]["id"] == "test:art138:ust3"
     assert klient.get("/api/jednostka/test:art138:ust3").json()["akt_kod"] == "test"
     assert klient.get("/api/jednostka/nie:ma").status_code == 404
+    akt = next(a for a in s["indeks"]["akty"] if a["kod"] == "test")
+    assert 0 < akt["opisy"] < akt["szukalnych"]                             # parser opisuje tylko definicje
+    assert klient.post("/api/opisz/nie_ma").status_code == 404
+    assert klient.post("/api/opisz/test").status_code == 409                # bez modelu opisów nie ma
 
 
 def test_walidacja_wgrania(klient):
