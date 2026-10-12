@@ -13,6 +13,7 @@ export default function Pytanie({ stan }: { stan: Stan | null }) {
   const [tresc, setTresc] = useState('')
   const [naDzien, setNaDzien] = useState('')
   const [analiza, setAnaliza] = useState(false)
+  const [slad, setSlad] = useState(false)
   const [czeka, setCzeka] = useState(false)
   const [sekundy, setSekundy] = useState<number | null>(null)
   const [wynik, setWynik] = useState<Odpowiedz | null>(null)
@@ -27,7 +28,7 @@ export default function Pytanie({ stan }: { stan: Stan | null }) {
     setWynik(null)
     const t0 = Date.now()
     try {
-      setWynik(await api.pytanie(p, naDzien || null, analiza ? true : null))
+      setWynik(await api.pytanie(p, naDzien || null, analiza ? true : null, slad ? true : null))
     } catch (err) {
       setBlad((err as Error).message)
     } finally {
@@ -61,6 +62,10 @@ export default function Pytanie({ stan }: { stan: Stan | null }) {
           <label className="pole-wiersz">
             <input type="checkbox" checked={analiza} onChange={(e) => setAnaliza(e.target.checked)} />
             analiza pytania (warianty, dopytanie; jedno wywołanie modelu więcej)
+          </label>
+          <label className="pole-wiersz" title="Zapisuje pełną treść pytania, wszystkie prompty i surowe odpowiedzi modelu. Dla referenta i administratora; pliki są usuwane po ustalonym czasie.">
+            <input type="checkbox" checked={slad || (stan?.slad.wlaczony ?? false)} disabled={stan?.slad.wlaczony ?? false} onChange={(e) => setSlad(e.target.checked)} />
+            zapisz ślad diagnostyczny tej odpowiedzi{stan?.slad.wlaczony ? ` (włączony dla wszystkich, ${stan.slad.dni} dni)` : ''}
           </label>
           <button type="submit" className="glowny" disabled={czeka || brakIndeksu || !tresc.trim()}>
             {czeka ? 'liczę…' : 'Zapytaj'}

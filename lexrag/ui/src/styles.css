@@ -68,16 +68,16 @@ button.link { border: none; background: none; color: var(--akcent); padding: 0 6
 .znacznik.dopytanie { background: #fff4d6; color: var(--uwaga); }
 .znacznik.przeglad { background: #e9f6ef; color: var(--ok); }
 .znacznik.ocena-dobrze { background: #e9f6ef; color: var(--ok); }
-.znacznik.zweryfikowana { background: #e9f6ef; color: var(--ok); }
-.znacznik.niezweryfikowana, .znacznik.odrzucona, .znacznik.brak_zrodel { background: #fde8e6; color: var(--zle); font-weight: 600; }
-.znacznik.ograniczona, .znacznik.pominieta { background: #fff4d6; color: var(--uwaga); }
+.znacznik.verified { background: #e9f6ef; color: var(--ok); }
+.znacznik.unverified { background: #fde8e6; color: var(--zle); font-weight: 600; }
+.znacznik.insufficient_sources { background: #fff4d6; color: var(--uwaga); }
 @media (prefers-color-scheme: dark) {
   .znacznik.odmowa, .znacznik.blad, .znacznik.ocena-zle { background: #4a2626; }
   .znacznik.dopytanie { background: #4a3d1f; }
   .znacznik.przeglad, .znacznik.ocena-dobrze { background: #1f3a2c; }
-  .znacznik.zweryfikowana { background: #1f3a2c; }
-  .znacznik.niezweryfikowana, .znacznik.odrzucona, .znacznik.brak_zrodel { background: #4a2626; }
-  .znacznik.ograniczona, .znacznik.pominieta { background: #4a3d1f; }
+  .znacznik.verified { background: #1f3a2c; }
+  .znacznik.unverified { background: #4a2626; }
+  .znacznik.insufficient_sources { background: #4a3d1f; }
 }
 .odpowiedz { font-size: 16px; margin: 10px 0; }
 .dopytanie { color: var(--uwaga); margin: 6px 0; }

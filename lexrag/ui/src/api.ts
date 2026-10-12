@@ -35,6 +35,7 @@ export interface Stan {
   indeks: { katalog: string; jednostek: number; szukalnych: number; embeddingi: boolean; akty: Akt[] }
   llm: { model: string; baza: string; dostepny: boolean; polaczenie: Polaczenie }
   zadanie: Zadanie
+  slad: { wlaczony: boolean; dni: number }
 }
 
 export interface Jednostka {
@@ -69,10 +70,13 @@ export interface Odpowiedz {
   zdania_usuniete: string[]
   przeglad: boolean
   dopytanie: string
-  status_weryfikacji: string
+  dane_do_pelnej_oceny: { dana: string; dlaczego: string }[]
+  status_weryfikacji: 'verified' | 'unverified' | 'insufficient_sources' | ''
+  ostrzezenia: { kod: string; tekst: string }[]
   naprawa: boolean
   zrodla: Akt[]
-  slad_url: string
+  trace_id: string
+  slad_url: string | null
   cytaty: Jednostka[]
   trafienia: Trafienie[]
   kontekst: string[]
@@ -113,11 +117,11 @@ async function sprawdz<T>(r: Response): Promise<T> {
 export const api = {
   stan: () => fetch('/api/stan').then((r) => sprawdz<Stan>(r)),
 
-  pytanie: (pytanie: string, na_dzien: string | null, analiza: boolean | null) =>
+  pytanie: (pytanie: string, na_dzien: string | null, analiza: boolean | null, slad: boolean | null = null) =>
     fetch('/api/pytanie', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pytanie, na_dzien, analiza }),
+      body: JSON.stringify({ pytanie, na_dzien, analiza, slad }),
     }).then((r) => sprawdz<Odpowiedz>(r)),
 
   jednostka: (id: string) => fetch(`/api/jednostka/${encodeURIComponent(id)}`).then((r) => sprawdz<Jednostka>(r)),

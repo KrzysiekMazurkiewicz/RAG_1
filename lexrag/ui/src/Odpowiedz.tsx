@@ -2,19 +2,30 @@ import { useState } from 'react'
 import { api, type Jednostka, type Odpowiedz } from './api'
 
 const STATUS: Record<string, { nazwa: string; opis: string }> = {
-  zweryfikowana: { nazwa: 'zweryfikowana', opis: 'każde zdanie przeszło kontrolę pokrycia w cytowanych przepisach' },
-  ograniczona: {
-    nazwa: 'zweryfikowana, nie rozstrzyga pytania',
-    opis: 'zdania mają pokrycie, ale odpowiedź nie rozstrzyga pytania wprost; sprawdź cytaty albo przekaż referentowi',
+  verified: {
+    nazwa: 'zweryfikowana',
+    opis: 'każde zdanie przeszło kontrolę: pokrycie w cytowanym przepisie, struktura warunków, negacje, liczby, zakres podmiotowy',
   },
-  niezweryfikowana: {
+  unverified: {
     nazwa: 'NIEZWERYFIKOWANA',
-    opis: 'kontrola nie zadziałała (błąd modelu); to szkic do sprawdzenia przez pracownika, czytaj wyłącznie z cytatami',
+    opis: 'szkic do sprawdzenia przez pracownika: kontrola nie zadziałała, była wyłączona albo odpowiedź ma zastrzeżenia',
   },
-  pominieta: { nazwa: 'bez weryfikacji', opis: 'weryfikację wyłączono' },
-  brak_zrodel: { nazwa: 'brak źródeł', opis: 'w dostarczonych przepisach nie ma podstawy do odpowiedzi' },
-  odrzucona: { nazwa: 'odrzucona przez kontrolę', opis: 'odpowiedź modelu nie przeszła kontroli' },
+  insufficient_sources: {
+    nazwa: 'brak wystarczających źródeł',
+    opis: 'system nie ma w indeksie podstaw do odpowiedzi albo odpowiedź modelu nie przeszła kontroli',
+  },
 }
+
+// ostrzeżenia, które pokazujemy wyraźnie (reszta jest informacją)
+const KRYTYCZNE = new Set([
+  'weryfikacja_nieudana',
+  'weryfikacja_wylaczona',
+  'nie_rozstrzyga',
+  'laczy_odrebne_podstawy',
+  'istotne_pominiecia',
+  'brak_wersji_na_date',
+  'brak_wersji_historycznej',
+])
 
 const NAZWA_TRYBU: Record<Odpowiedz['tryb'], string> = {
   odpowiedz: 'odpowiedź',
@@ -87,20 +98,23 @@ export default function OdpowiedzWidok({ w }: { w: Odpowiedz }) {
         )}
       </div>
 
-      {w.status_weryfikacji === 'niezweryfikowana' && (
-        <p className="ostrzezenie">
-          Kontrola odpowiedzi nie zadziałała. To szkic, nie odpowiedź systemu: przeczytaj cytowane przepisy albo przekaż
-          sprawę referentowi.
+      {w.ostrzezenia.map((o) => (
+        <p key={o.kod} className={KRYTYCZNE.has(o.kod) ? 'ostrzezenie' : 'cichy'}>
+          {o.tekst}
         </p>
-      )}
-      {w.status_weryfikacji === 'ograniczona' && (
-        <p className="ostrzezenie">Odpowiedź nie rozstrzyga pytania wprost. Sprawdź cytaty albo przekaż sprawę referentowi.</p>
-      )}
+      ))}
 
       {w.przeglad && (
         <p className="cichy">
           Pytanie jest ogólne albo brakuje w nim danych o sytuacji, więc odpowiedź wymienia wszystkie sytuacje z
           odnalezionych przepisów. Podaj szczegóły, a odpowiedź będzie konkretna.
+        </p>
+      )}
+
+      {w.dane_do_pelnej_oceny.length > 0 && (
+        <p className="cichy">
+          Do pełnej oceny sprawy (nie do tej odpowiedzi) potrzebne byłyby jeszcze:{' '}
+          {w.dane_do_pelnej_oceny.map((d) => `${d.dana} (${d.dlaczego})`).join('; ')}.
         </p>
       )}
 
