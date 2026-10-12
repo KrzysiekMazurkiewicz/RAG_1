@@ -37,8 +37,13 @@ export default function App() {
         <div className="stan-skrot" title={llm ? llm.baza : ''}>
           {stan ? (
             <>
-              <span className={llm?.dostepny ? 'kropka ok' : 'kropka zle'} />
-              {llm?.dostepny ? `model ${llm.model}` : 'bez modelu (tylko wyszukiwanie)'} · {stan.indeks.akty.length} akt.,{' '}
+              <span className={llm?.dostepny && llm.polaczenie?.ok ? 'kropka ok' : 'kropka zle'} />
+              {llm?.dostepny
+                ? llm.polaczenie?.ok
+                  ? `model ${llm.model}`
+                  : `model ${llm.model} nie odpowiada (Administracja → Serwer modelu)`
+                : 'bez modelu (tylko wyszukiwanie)'}{' '}
+              · {stan.indeks.akty.length} akt.,{' '}
               {stan.indeks.szukalnych} przepisów
             </>
           ) : (

@@ -43,6 +43,25 @@ def test_stan_bez_indeksu_i_pytanie_409(klient):
     assert klient.get("/").status_code == 200 and "LexRAG" in klient.get("/").text
 
 
+def test_ustawienia_serwera_modelu(klient):
+    """Panel zmienia adres i model bez restartu: zapis do data/model.json i sprawdzenie połączenia."""
+    from lexrag import config
+    stare = (config.KONFIG.llm_base_url, config.KONFIG.llm_model, config.KONFIG.llm_api)
+    try:
+        r = klient.post("/api/model", json={"base_url": "http://127.0.0.1:9/v1", "model": "testowy", "api": "ollama"})
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["model"] == "testowy" and d["polaczenie"]["ok"] is False and d["polaczenie"]["komunikat"]
+        assert config.KONFIG.llm_model == "testowy" and config.KONFIG.llm_base_url == "http://127.0.0.1:9/v1"
+        assert klient.get("/api/model").json()["base_url"] == "http://127.0.0.1:9/v1"
+        assert klient.get("/api/stan").json()["llm"]["polaczenie"]["ok"] is False
+        assert klient.post("/api/model", json={"base_url": "ftp://x", "model": "m"}).status_code == 400
+        assert klient.post("/api/model", json={"base_url": "http://x", "model": ""}).status_code == 400
+        assert os.path.exists(os.path.join(web.KATALOG_DANYCH, "model.json"))
+    finally:
+        config.ustaw(llm_base_url=stare[0], llm_model=stare[1], llm_api=stare[2])
+
+
 def test_wgranie_ustawy_i_dokumentu_oraz_pytanie(klient):
     with open(os.path.join(DANE, "ustawa_testowa.txt"), "rb") as f:
         r = klient.post("/api/wgraj", files={"plik": ("ustawa.txt", f, "text/plain")},

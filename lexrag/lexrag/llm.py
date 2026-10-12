@@ -65,6 +65,11 @@ def llm_dostepny() -> bool:
     return bool(KONFIG.llm_model)
 
 
+def resetuj_obsluge() -> None:
+    """Po zmianie serwera modelu zapomnij, czego poprzedni serwer nie obsługiwał (schemat JSON, think)."""
+    _OBSLUGA.update(schema=True, json=True, think=True)
+
+
 def tryb_api() -> str:
     if KONFIG.llm_api in ("openai", "ollama"):
         return KONFIG.llm_api

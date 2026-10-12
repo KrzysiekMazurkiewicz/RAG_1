@@ -69,3 +69,13 @@ class Konfig:
 
 
 KONFIG = Konfig()
+
+
+def ustaw(**zmiany) -> None:
+    """Zmiana wybranych pól konfiguracji w działającym procesie, np. nowy adres serwera modelu z panelu
+    administratora (tunel z Colaba ma inny adres w każdej sesji). Konfig jest zamrożony, więc pola podmieniamy
+    przez object.__setattr__; wszystkie moduły trzymają ten sam obiekt KONFIG, więc widzą zmianę od razu."""
+    for nazwa, wartosc in zmiany.items():
+        if not hasattr(KONFIG, nazwa):
+            raise KeyError(nazwa)
+        object.__setattr__(KONFIG, nazwa, wartosc)

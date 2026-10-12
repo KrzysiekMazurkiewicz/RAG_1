@@ -256,6 +256,12 @@ cd ui && npm run build                     # ui/dist – FastAPI serwuje je pod 
 Obraz Dockera buduje interfejs sam (etap `node:22-alpine` w `Dockerfile`). Gdy `ui/dist` nie istnieje, pod „/”
 działa prosta strona wbudowana w `lexrag/web.py`.
 
+**Serwer modelu z panelu** (`GET/POST /api/model`): adres, nazwa modelu i rodzaj API można zmienić w zakładce
+*Administracja → Serwer modelu* bez restartu; ustawienie trafia do `data/model.json` i nadpisuje zmienne środowiskowe
+przy kolejnym starcie. Przydatne przy tunelu z Colaba, który ma inny adres w każdej sesji. `GET /api/stan` podaje
+`llm.polaczenie` (czy serwer odpowiada i ma model; sprawdzane co 60 s), a nagłówek strony pokazuje czerwoną kropkę,
+gdy model nie odpowiada.
+
 **Opinie użytkowników** (`POST /api/opinia`, `GET /api/opinie?status=nowa`, `POST /api/opinie/{id}/przeglad`,
 `GET /api/opinie/eksport`): każda odpowiedź dostaje `id_odpowiedzi` i trafia do dziennika `data/odpowiedzi.jsonl`
 (ciągi 11 cyfr są maskowane); ocena „źle” wymaga wskazania właściwego przepisu albo komentarza; zatwierdzone przez

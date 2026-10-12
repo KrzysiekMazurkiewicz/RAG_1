@@ -5,6 +5,33 @@ export default function Administracja({ stan, odswiez }: { stan: Stan | null; od
   const [komunikat, setKomunikat] = useState('')
   const [wysylam, setWysylam] = useState(false)
   const [zOpisami, setZOpisami] = useState(true)
+  const [adres, setAdres] = useState('')
+  const [model, setModel] = useState('')
+  const [api2, setApi2] = useState('auto')
+  const [wynikModelu, setWynikModelu] = useState('')
+  const [zapisuje, setZapisuje] = useState(false)
+
+  useEffect(() => {
+    if (stan && !adres && !model) {
+      setAdres(stan.llm.baza)
+      setModel(stan.llm.model)
+    }
+  }, [stan, adres, model])
+
+  const zapiszModel = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setZapisuje(true)
+    setWynikModelu('')
+    try {
+      const u = await api.ustawModel({ base_url: adres.trim(), model: model.trim(), api: api2 })
+      setWynikModelu((u.polaczenie.ok ? 'OK: ' : 'Błąd: ') + u.polaczenie.komunikat)
+      await odswiez()
+    } catch (err) {
+      setWynikModelu(`Błąd: ${(err as Error).message}`)
+    } finally {
+      setZapisuje(false)
+    }
+  }
   const wToku = stan?.zadanie.status === 'w toku'
   const jestModel = stan?.llm.dostepny ?? false
 
@@ -56,7 +83,9 @@ export default function Administracja({ stan, odswiez }: { stan: Stan | null; od
                 <th>model</th>
                 <td>
                   {stan.llm.model || '(brak: tryb retrieval-only)'} · {stan.llm.baza} ·{' '}
-                  <span className={stan.llm.dostepny ? 'ok' : 'blad'}>{stan.llm.dostepny ? 'odpowiada' : 'nie odpowiada'}</span>
+                  <span className={stan.llm.polaczenie?.ok ? 'ok' : 'blad'}>
+                    {stan.llm.polaczenie?.ok ? 'odpowiada' : `nie odpowiada: ${stan.llm.polaczenie?.komunikat ?? ''}`}
+                  </span>
                 </td>
               </tr>
               <tr>
@@ -80,6 +109,36 @@ export default function Administracja({ stan, odswiez }: { stan: Stan | null; od
         )}
         {komunikat && <p className={komunikat.startsWith('Błąd') ? 'blad' : 'ok'}>{komunikat}</p>}
       </div>
+
+      <form className="karta formularz" onSubmit={zapiszModel}>
+        <h3>Serwer modelu</h3>
+        <div className="wiersz">
+          <label className="pole">
+            <span>Adres serwera (Ollama: …:11434/v1; tunel z Colaba: https://…trycloudflare.com/v1)</span>
+            <input value={adres} onChange={(e) => setAdres(e.target.value)} placeholder="http://localhost:11434/v1" />
+          </label>
+          <label className="pole male">
+            <span>Model</span>
+            <input value={model} onChange={(e) => setModel(e.target.value)} placeholder="gemma4:12b" />
+          </label>
+          <label className="pole male">
+            <span>API</span>
+            <select value={api2} onChange={(e) => setApi2(e.target.value)}>
+              <option value="auto">auto</option>
+              <option value="ollama">ollama</option>
+              <option value="openai">openai (vLLM, llama.cpp)</option>
+            </select>
+          </label>
+          <button type="submit" className="glowny" disabled={zapisuje || !adres.trim() || !model.trim()}>
+            {zapisuje ? 'sprawdzam…' : 'Zapisz i sprawdź'}
+          </button>
+        </div>
+        {wynikModelu && <p className={wynikModelu.startsWith('Błąd') ? 'blad' : 'ok'}>{wynikModelu}</p>}
+        <p className="cichy">
+          Zmiana działa od razu, bez restartu, i jest zapamiętana w data/model.json (nadpisuje zmienne środowiskowe).
+          Tunel z Colaba ma inny adres w każdej sesji: wklej nowy adres z komórki „tunel” i zapisz.
+        </p>
+      </form>
 
       <div className="karta">
         <h3>Wgrane akty i dokumenty</h3>

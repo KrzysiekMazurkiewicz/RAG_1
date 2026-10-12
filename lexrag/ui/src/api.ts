@@ -17,10 +17,23 @@ export interface Zadanie {
   komunikat?: string
 }
 
+export interface Polaczenie {
+  ok: boolean
+  komunikat: string
+  sprawdzono: number
+}
+
+export interface UstawieniaModelu {
+  base_url: string
+  model: string
+  api: string
+  polaczenie: Polaczenie
+}
+
 export interface Stan {
   wersja: string
   indeks: { katalog: string; jednostek: number; szukalnych: number; embeddingi: boolean; akty: Akt[] }
-  llm: { model: string; baza: string; dostepny: boolean }
+  llm: { model: string; baza: string; dostepny: boolean; polaczenie: Polaczenie }
   zadanie: Zadanie
 }
 
@@ -113,6 +126,13 @@ export const api = {
 
   opisz: (kod: string) =>
     fetch(`/api/opisz/${encodeURIComponent(kod)}`, { method: 'POST' }).then((r) => sprawdz<Zadanie>(r)),
+
+  ustawModel: (dane: { base_url: string; model: string; api: string }) =>
+    fetch('/api/model', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dane),
+    }).then((r) => sprawdz<UstawieniaModelu>(r)),
 
   opinia: (dane: { id_odpowiedzi: string; ocena: string; wlasciwy_przepis: string[]; komentarz: string }) =>
     fetch('/api/opinia', {

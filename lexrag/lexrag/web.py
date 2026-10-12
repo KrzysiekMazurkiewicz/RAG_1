@@ -14,6 +14,8 @@ import os
 import re
 import shutil
 import threading
+import urllib.error
+import urllib.request
 import uuid
 from datetime import date, datetime
 import time
@@ -26,10 +28,10 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from . import __version__
-from .config import KONFIG
+from .config import KONFIG, ustaw
 from .generate import odpowiedz
 from .index import Indeks
-from .llm import llm_dostepny
+from .llm import llm_dostepny, resetuj_obsluge, tryb_api
 from .models import zapisz_jsonl
 
 log = logging.getLogger("lexrag")
@@ -37,6 +39,7 @@ KATALOG_DANYCH = os.environ.get("LEXRAG_DATA_DIR", "data")
 KATALOG_INDEKSU = os.environ.get("LEXRAG_INDEX_DIR", os.path.join(KATALOG_DANYCH, "index"))
 Z_EMBEDDINGAMI = not KONFIG.emb_wylacz
 ROZSZERZENIA = (".pdf", ".txt", ".html", ".htm", ".docx", ".md")
+PLIK_MODELU = "model.json"   # ustawienia serwera modelu zapisane z panelu (nadpisują zmienne środowiskowe)
 
 
 class Stan:
@@ -58,6 +61,7 @@ STAN = Stan()
 
 @asynccontextmanager
 async def _cykl(app: FastAPI):
+    _wczytaj_ustawienia_modelu()
     try:
         STAN.wczytaj()
     except Exception as e:  # uszkodzony indeks nie może położyć serwera
@@ -66,6 +70,53 @@ async def _cykl(app: FastAPI):
 
 
 app = FastAPI(title="LexRAG", version=__version__, lifespan=_cykl)
+
+
+# --- serwer modelu: ustawienia z panelu i sprawdzanie połączenia ---------------------
+_POLACZENIE: dict = {"sprawdzono": 0.0, "ok": False, "komunikat": ""}
+
+
+def _wczytaj_ustawienia_modelu() -> None:
+    sciezka = os.path.join(KATALOG_DANYCH, PLIK_MODELU)
+    if not os.path.exists(sciezka):
+        return
+    try:
+        with open(sciezka, encoding="utf-8") as f:
+            d = json.load(f)
+        ustaw(**{k: v for k, v in d.items() if k in ("llm_base_url", "llm_model", "llm_api") and isinstance(v, str)})
+        log.info("Ustawienia serwera modelu z %s: %s", sciezka, d)
+    except Exception as e:
+        log.warning("Nie wczytano %s: %s", sciezka, e)
+
+
+def _sprawdz_polaczenie(wymus: bool = False) -> dict:
+    """Czy serwer modelu odpowiada i ma model: Ollama GET /api/tags, serwer OpenAI GET /models; wynik buforowany 60 s."""
+    if not KONFIG.llm_model:
+        return {"ok": False, "komunikat": "brak modelu (LEXRAG_LLM_MODEL)", "sprawdzono": time.time()}
+    if not wymus and time.time() - _POLACZENIE["sprawdzono"] < 60:
+        return dict(_POLACZENIE)
+    baza = KONFIG.llm_base_url.rstrip("/")
+    ollama = tryb_api() == "ollama"
+    url = (re.sub(r"/v1$", "", baza) + "/api/tags") if ollama else (baza + "/models")
+    try:
+        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {KONFIG.llm_api_key}"})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            dane = json.loads(r.read().decode("utf-8", "replace") or "{}")
+        if ollama:
+            nazwy = {m.get("name", "") for m in dane.get("models", [])} | {m.get("model", "") for m in dane.get("models", [])}
+            szukane = {KONFIG.llm_model, KONFIG.llm_model + ":latest"}
+            if nazwy & szukane:
+                wynik = {"ok": True, "komunikat": f"serwer odpowiada, model {KONFIG.llm_model} jest na nim"}
+            else:
+                wynik = {"ok": False, "komunikat": f"serwer odpowiada, ale nie ma modelu {KONFIG.llm_model} "
+                                                   f"(ma: {', '.join(sorted(n for n in nazwy if n))[:120] or 'nic'})"}
+        else:
+            wynik = {"ok": True, "komunikat": "serwer odpowiada"}
+    except Exception as e:
+        wynik = {"ok": False, "komunikat": f"{type(e).__name__}: {str(e)[:160]}"}
+    wynik["sprawdzono"] = time.time()
+    _POLACZENIE.update(wynik)
+    return dict(wynik)
 
 
 # --- pomocnicze ----------------------------------------------------------------------
@@ -176,9 +227,40 @@ def stan() -> dict:
         "indeks": {"katalog": KATALOG_INDEKSU, "jednostek": len(idx.jednostki) if idx else 0,
                    "szukalnych": len(idx) if idx else 0, "embeddingi": bool(idx is not None and idx.emb is not None),
                    "akty": _akty(idx) if idx else []},
-        "llm": {"model": KONFIG.llm_model, "baza": KONFIG.llm_base_url, "dostepny": llm_dostepny()},
+        "llm": {"model": KONFIG.llm_model, "baza": KONFIG.llm_base_url, "dostepny": llm_dostepny(),
+                "polaczenie": _sprawdz_polaczenie()},
         "zadanie": STAN.zadanie,
     }
+
+
+class UstawieniaModelu(BaseModel):
+    base_url: str
+    model: str
+    api: str = "auto"
+
+
+@app.get("/api/model")
+def model_get() -> dict:
+    return {"base_url": KONFIG.llm_base_url, "model": KONFIG.llm_model, "api": KONFIG.llm_api,
+            "polaczenie": _sprawdz_polaczenie()}
+
+
+@app.post("/api/model")
+def model_post(u: UstawieniaModelu) -> dict:
+    """Zmiana serwera modelu bez restartu (nowy adres tunelu, inny model); zapis do data/model.json, sprawdzenie połączenia."""
+    base, model, api = u.base_url.strip(), u.model.strip(), (u.api.strip() or "auto")
+    if not re.match(r"^https?://", base):
+        raise HTTPException(400, "Adres serwera musi zaczynać się od http:// albo https://")
+    if not model:
+        raise HTTPException(400, "Podaj nazwę modelu (np. gemma4:12b).")
+    if api not in ("auto", "ollama", "openai"):
+        raise HTTPException(400, "api: auto, ollama albo openai.")
+    ustaw(llm_base_url=base, llm_model=model, llm_api=api)
+    resetuj_obsluge()
+    with STAN.blokada:
+        with open(_plik_danych(PLIK_MODELU), "w", encoding="utf-8") as f:
+            json.dump({"llm_base_url": base, "llm_model": model, "llm_api": api}, f, ensure_ascii=False, indent=1)
+    return {"base_url": base, "model": model, "api": api, "polaczenie": _sprawdz_polaczenie(wymus=True)}
 
 
 @app.post("/api/pytanie")
