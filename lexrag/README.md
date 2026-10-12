@@ -66,12 +66,12 @@ pytanie ─► [1] analiza + warianty (LLM) ─► [2] BM25 + wektory (RRF) ─�
 | 2 | BM25 na lematach (simplemma) + wektory (`sdadas/mmlw-retrieval-roberta-large`), scalone RRF, filtr na datę obowiązywania | `bm25.py`, `tokenize.py`, `retrieve.py` |
 | 3 | cross-encoder `BAAI/bge-reranker-v2-m3` przestawia top-50 na top-8; opcjonalny próg odmowy | `retrieve.rerank` |
 | 4 | do promptu: trafienia → cały artykuł-rodzic → odesłania → definicje; twardy limit znaków (`LEXRAG_MAX_CTX_CHARS`) | `retrieve.rozszerz` |
-| 1, 5, 6b, 7 | trzy do pięciu wywołań LLM ze **schematem JSON** (dekodowanie ograniczone gramatyką — Ollama `format`, llama.cpp/vLLM `response_format`), tryb myślenia wyłączony; tryb przeglądowy (wszystkie sytuacje z kontekstu) **tylko dla pytań hasłowych** – brak danych wg analizy daje zwykłą, warunkową odpowiedź z pytaniem doprecyzowującym obok | `generate.py`, `llm.py` |
+| 1, 5, 6b, 7 | trzy do pięciu wywołań LLM ze **schematem JSON** (dekodowanie ograniczone gramatyką — Ollama `format`, llama.cpp/vLLM `response_format`), tryb myślenia wyłączony. Prompt odpowiedzi: najpierw główna wątpliwość, na „czy” wprost, wąskie pytanie osobno od pełnej oceny uprawnienia, **bez przenoszenia przesłanek między odrębnymi podstawami**, z zachowaniem „i”/„lub”/„albo”, negacji, progów i zakresu podmiotowego, bez dopytywania o to, co podano. Analiza rozdziela dane **niezbędne** od danych **do pełnej oceny** (każdy brak z uzasadnieniem) i nie zgaduje numerów artykułów. Tryb przeglądowy (zasada ogólna i istotne wyjątki tematu, nie katalog całego kontekstu) włączają **tylko hasło i jawna prośba o przegląd**; brak danych o sytuacji go nie włącza | `generate.py`, `llm.py` |
 | 6a | każda liczba w odpowiedzi (lata, kwoty, procenty, terminy, numery artykułów) musi wystąpić w kontekście — także słownie („trzech lat”); zdania z liczbami znikąd i zdania będące echem pytania wypadają bez pytania modelu | `generate.liczby_bez_pokrycia`, `powtarza_pytanie` |
-| 6b | weryfikator ocenia każde zdanie osobno: pokrycie w cytowanych przepisach, **logika warunków** („i”/„lub”, negacje, progi przypisane do grup), **odrębna podstawa prawna przedstawiona jako warunek**; a całość: czy dotyczy pytania i czy **rozstrzyga pytanie zamknięte** („czy…” → tak / nie / zależy od…); dostaje oryginalne pytanie (tryb przeglądowy osobną linią, nie dopiskiem do pytania) | `generate.weryfikuj`, `PROMPT_WERYFIKACJA` |
-| 7 | gdy kontrola wskaże błędy (nie na temat, brak rozstrzygnięcia, zdania usunięte), model pisze odpowiedź raz jeszcze z listą błędów i poprzednią wersją; kontrola biegnie ponownie i zostaje lepsza wersja; drugiego cyklu nie ma (`LEXRAG_NAPRAWA=0` wyłącza) | `generate._kontrola`, `PROMPT_NAPRAWA` |
-| status | każda odpowiedź ma `status_weryfikacji`: `zweryfikowana`, `ograniczona` (pokryta, ale nie rozstrzyga pytania), `niezweryfikowana` (awaria kontroli – interfejs pokazuje ostrzeżenie, nie zieloną odpowiedź), `pominieta`, `brak_zrodel`, `odrzucona` | `generate.Odpowiedz` |
-| ślad | pełny ślad diagnostyczny: analiza, zapytania, ranking z wynikami, kontekst, wszystkie wiadomości do modelu i surowe odpowiedzi, werdykty, cykl naprawczy – `ask --slad plik.json`, w WWW `data/slady/<id>.json` i `GET /api/slad/{id}` (ciągi 11 cyfr maskowane) | `llm.rozpocznij_slad`, `Odpowiedz.slad` |
+| 6b | weryfikator dostaje **oryginalne pytanie** (bez dopisków o trybie) i ocenia każde zdanie jawnie: pokrycie w cytowanym fragmencie (zwrócone `id` źródła musi być z listy fragmentów), **struktura warunków** (łączne / alternatywne), **negacje**, **przypisanie liczb** do grupy i warunku, **zakres podmiotowy**; a całość: czy dotyczy pytania, czy **rozstrzyga główną wątpliwość** (na „czy” wprost), czy **nie łączy odrębnych podstaw**, czy dopytanie jest konieczne, istotne pominięcia i lista błędów z numerem zdania i źródłem. Werdykty są mapowane **po numerach zdań**, nie po kolejności; zdania bez poprawnego werdyktu są dopytywane osobno. Po usunięciu zdań to, co zostało, jest weryfikowane jeszcze raz | `generate.weryfikuj`, `_kontrola` |
+| 7 | gdy kontrola wskaże błędy (nie na temat, brak rozstrzygnięcia, odrębna podstawa jako warunek, pominięcia, zdania usunięte), model dostaje oryginalne pytanie, kontekst, poprzednią odpowiedź i listę błędów i pisze odpowiedź raz jeszcze; kontrola biegnie ponownie i zostaje lepsza wersja; **drugiej próby nie ma**: po drugim niepowodzeniu zostaje jawne ograniczenie (`unverified` z ostrzeżeniem i skierowaniem do referenta) albo odmowa (`LEXRAG_NAPRAWA=0` wyłącza) | `generate._kontrola`, `PROMPT_NAPRAWA` |
+| status | każda odpowiedź ma `status_weryfikacji`: **`verified`** (weryfikator zadziałał i nie zostały zastrzeżenia), **`unverified`** (awaria, timeout albo zły JSON weryfikatora, weryfikacja wyłączona albo zastrzeżenia po naprawie: odpowiedź to szkic do sprawdzenia przez pracownika) i **`insufficient_sources`** (indeks nie ma podstaw do odpowiedzi albo odpowiedź nie przeszła kontroli). Kontrola liczb i identyfikatorów jest warunkiem koniecznym, nigdy dowodem poprawności. Ograniczenia i uwagi niesie lista `ostrzezenia` (`kod` + `tekst`), np. `brak_wersji_historycznej`, `weryfikacja_nieudana`, `nie_rozstrzyga`, `po_cyklu_naprawczym` | `generate.Odpowiedz`, `_status_koncowy` |
+| ślad | pełny ślad diagnostyczny (`trace_id`, analiza, zapytania, ranking z wynikami, kontekst, wszystkie wiadomości do modelu i surowe odpowiedzi z liczbą tokenów, werdykty, błędy, usunięte zdania, naprawa, wynik, konfiguracja bez sekretów). **Domyślnie wyłączony**: zawiera pełną treść pytań, więc zapis włącza `LEXRAG_TRACE=1` (wszystkie odpowiedzi) albo pole „zapisz ślad” w jednym pytaniu; `ask --slad plik.json` zapisuje ślad na życzenie. Odczyt `GET /api/slad/{id}` tylko z adresu lokalnego albo z tokenem `LEXRAG_TRACE_TOKEN` (nagłówek `X-Lexrag-Token`); pliki w `data/slady/` są usuwane po `LEXRAG_TRACE_DAYS` dniach (domyślnie 7); ciągi 11 cyfr są maskowane w zapisie, nie w żądaniu do modelu. Zasady retencji ustal z inspektorem ochrony danych | `llm.rozpocznij_slad`, `Odpowiedz.slad`, `web._zapisz_slad` |
 | eval | recall@k wyszukiwania; pokrycie i precyzja odpowiedzi (cytat trafny + frazy kluczowe) | `evaluate.py` |
 
 ## Model on-premise — co wybrać
@@ -105,8 +105,12 @@ Praktyka, która decyduje o jakości bardziej niż wybór modelu:
   48 s na CPU (M2 16 GB); model językowy nadal przez Ollamę lub tunel.
 * **Stan prawny na dzień** filtruje po datach nadanych aktowi przy wgraniu (także rodzice, odesłania i definicje);
   w indeksie jest jedno brzmienie każdego przepisu, więc data wybiera między wgranymi wersjami aktu (różne kody),
-  nie między brzmieniami ustępu. Odpowiedź pokazuje wersję aktu (`--wersja`, pole „wersja” formularza) i okres
-  obowiązywania z dopiskiem, że system nie potwierdza brzmienia na inną datę.
+  nie między brzmieniami ustępu. Daty obowiązywania pochodzą wyłącznie z metadanych źródła albo od administratora
+  (np. data ogłoszenia tekstu jednolitego z API Sejmu), nigdy z domysłu ani z daty pobrania; ustawa o FUS nie ma dat,
+  bo wygaśnięcie obwieszczenia o tekście jednolitym nie jest wygaśnięciem ustawy. Gdy użytkownik wskaże datę, a indeks
+  nie ma wersji historycznej, odpowiedź dostaje ostrzeżenie `brak_wersji_historycznej` (albo `jedna_wersja_aktu`), a gdy
+  żaden akt nie obowiązuje w tym dniu – `insufficient_sources` z listą dostępnych wersji. Pod odpowiedzią widać wersję
+  aktu (`--wersja`, pole „wersja” formularza) i okres obowiązywania.
 
 Inne serwery:
 
@@ -134,6 +138,7 @@ export LEXRAG_LLM_BASE_URL=http://localhost:8080/v1 LEXRAG_LLM_MODEL=model
 | `LEXRAG_SKIP_ANALYSIS` | `0` | `1` = pomiń krok analizy pytania (to samo co `--bez-analizy`) |
 | `LEXRAG_NUMERIC_CHECK` | `1` | kontrola liczb w odpowiedzi |
 | `LEXRAG_NAPRAWA` | `1` | jeden cykl naprawczy po nieudanej kontroli (`0` = tylko usuwanie zdań) |
+| `LEXRAG_TRACE` / `LEXRAG_TRACE_DAYS` / `LEXRAG_TRACE_TOKEN` | `0` / `7` / puste | zapis śladu diagnostycznego dla wszystkich odpowiedzi (domyślnie wyłączony), retencja w dniach, token do odczytu `/api/slad` spoza adresu lokalnego |
 | `LEXRAG_RERANK_THRESHOLD` | `0` | np. `0.05`: odmowa, gdy najlepszy kandydat ma niską trafność wg rerankera |
 | `LEXRAG_MAX_CTX_CHARS` | `12000` | budżet znaków kontekstu dla LLM (~4 tys. tokenów) |
 | `LEXRAG_TOP_N` / `LEXRAG_K_EACH` | `8` / `30` | ile jednostek po reranku / ile kandydatów z każdej metody |
@@ -232,8 +237,21 @@ Nagłówki stają się ścieżką jednostki, długie sekcje są dzielone z zacho
 ## Testy
 
 ```bash
-python -m pytest -q      # 34 testy: parser (w tym przypadki z prawdziwego PDF Dz.U.), kontrola liczb, orkiestracja LLM (zamockowana)
+python -m pytest -q      # parser (w tym przypadki z prawdziwego PDF Dz.U.), kontrola liczb; 7 testów z modelem jest pomijanych,
+                         # orkiestracja LLM na mockach (przypadki A–H z audytu: tests/test_kontrola_odpowiedzi.py), API, ślad
 ```
+
+Testy z **prawdziwym modelem** (`tests/test_model_rzeczywisty.py`) są pominięte, dopóki nie ustawisz zmiennych; sprawdzają,
+czy prawdziwy weryfikator odrzuca celowo błędne zdania („albo” zamienione na „i”, przesłanka z odrębnej podstawy,
+wariant 30 lat przeniesiony na 25) i nie odrzuca poprawnego, oraz drukują pełne odpowiedzi dla pytań A, B i C:
+
+```bash
+LEXRAG_TEST_MODEL=1 LEXRAG_LLM_BASE_URL=http://localhost:11434/v1 LEXRAG_LLM_API=ollama \
+LEXRAG_LLM_MODEL=gemma4:12b python -m pytest tests/test_model_rzeczywisty.py -v -s
+```
+
+Zdania i oczekiwane twierdzenia pochodzą z `tests/data/fus_wyciag.txt` (dosłowny tekst jednolity, art. 24, 27, 29 i 31),
+nie z pamięci. Porażka takiego testu znaczy, że dany model nie wykrył błędu, a nie że kod jest zły.
 
 ## Interfejs WWW i API
 
@@ -275,11 +293,12 @@ w tle jeden wspólny indeks ze wszystkich plików `data/units/*.jsonl`. API: `GE
 `POST /api/pytanie {"pytanie", "na_dzien", "analiza"}`, `POST /api/wgraj` (multipart; pole `opisy=1` każe
 modelowi dopisać opisy kontekstowe przed budową indeksu), `POST /api/opisz/{kod}` (opisy dla wgranego już aktu,
 potem przebudowa indeksu; 409 bez modelu), `GET /api/jednostka/{id}`.
-Odpowiedź niesie też `przeglad` (true dla pytań hasłowych), `dopytanie` (pytanie doprecyzowujące), `status_weryfikacji`,
-`naprawa` (true, gdy to druga wersja po cyklu naprawczym), `zrodla` (akty cytowane: wersja i okres obowiązywania)
-i `slad_url` (`GET /api/slad/{id}`: pełny ślad diagnostyczny tej odpowiedzi). Interfejs pokazuje status jako znacznik:
-odpowiedź `niezweryfikowana` ma czerwone ostrzeżenie i jest szkicem do sprawdzenia, `ograniczona` ma uwagę, że nie
-rozstrzyga pytania.
+Odpowiedź niesie też `przeglad` (true dla hasła i jawnej prośby o przegląd), `dopytanie` (pytanie o dane niezbędne, obok
+odpowiedzi), `dane_do_pelnej_oceny` (czego brakuje do oceny sprawy, nie do odpowiedzi), `status_weryfikacji`
+(`verified` | `unverified` | `insufficient_sources`), `ostrzezenia` (`kod` + `tekst`), `naprawa`, `zrodla` (akty cytowane:
+wersja i okres obowiązywania), `trace_id` (to samo co `id_odpowiedzi`) i `slad_url` (tylko gdy ślad zapisano). Pole
+`slad` w żądaniu `POST /api/pytanie` zapisuje ślad jednej odpowiedzi. Interfejs pokazuje status jako znacznik, a odpowiedź
+`unverified` ma czerwone ostrzeżenie: to szkic do sprawdzenia przez pracownika.
 Pytanie bez `na_dzien` liczy się na dziś: gdy w indeksie są dwie wersje aktu (różne kody, okresy obowiązywania
 `--obowiazuje-od/--obowiazuje-do`), odpowiada bieżąca, a z datą ta, która obowiązywała w tym dniu.
 

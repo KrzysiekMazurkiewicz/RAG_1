@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 
 
@@ -67,8 +68,31 @@ class Konfig:
     # biegnie ponownie; po drugim niepowodzeniu zostaje to, co przeszło kontrolę. "0" wyłącza.
     naprawa: bool = _env("LEXRAG_NAPRAWA", "1") == "1"
 
+    # --- ślad diagnostyczny ---
+    # Pełny ślad (pytanie, wszystkie wiadomości do modelu, surowe odpowiedzi, werdykty) zawiera dane z pytań użytkowników,
+    # więc domyślnie NIE jest zapisywany. Włączenie: LEXRAG_TRACE=1 (każda odpowiedź) albo pole "slad" w żądaniu
+    # (jedna odpowiedź). Odczyt tylko z adresu lokalnego albo z tokenem LEXRAG_TRACE_TOKEN; pliki starsze niż
+    # LEXRAG_TRACE_DAYS dni są usuwane przy kolejnym zapisie.
+    slad_wlaczony: bool = _env("LEXRAG_TRACE", "0") == "1"
+    slad_dni: int = int(_env("LEXRAG_TRACE_DAYS", "7"))
+    slad_token: str = _env("LEXRAG_TRACE_TOKEN", "")
+
 
 KONFIG = Konfig()
+
+
+def konfiguracja_do_sladu() -> dict:
+    """Konfiguracja potrzebna do odtworzenia przebiegu, bez sekretów: klucza API nie zapisujemy, a z adresu serwera
+    usuwamy dane logowania (user:hasło@)."""
+    return {
+        "llm_model": KONFIG.llm_model, "llm_model_maly": KONFIG.llm_model_maly, "llm_api": KONFIG.llm_api,
+        "llm_adres": re.sub(r"//[^/@]*@", "//", KONFIG.llm_base_url), "llm_num_ctx": KONFIG.llm_num_ctx,
+        "llm_seed": KONFIG.llm_seed, "llm_think": KONFIG.llm_think, "temperatura": 0.0,
+        "emb_model": KONFIG.emb_model, "reranker_model": KONFIG.reranker_model, "urzadzenie": KONFIG.urzadzenie,
+        "k_kazde": KONFIG.k_kazde, "rrf_k": KONFIG.rrf_k, "top_po_reranku": KONFIG.top_po_reranku,
+        "max_znakow_kontekstu": KONFIG.max_znakow_kontekstu, "prog_rerank": KONFIG.prog_rerank,
+        "pomin_analize": KONFIG.pomin_analize, "kontrola_liczb": KONFIG.kontrola_liczb, "naprawa": KONFIG.naprawa,
+    }
 
 
 def ustaw(**zmiany) -> None:

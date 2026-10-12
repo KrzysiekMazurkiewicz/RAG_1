@@ -134,6 +134,11 @@ def wypisz_odpowiedz(w, idx, pokaz_kontekst: bool = False) -> None:
     print("\n" + w.tekst)
     if getattr(w, "status_weryfikacji", ""):
         print(f"status weryfikacji: {w.status_weryfikacji}" + (" (odpowiedź po cyklu naprawczym)" if getattr(w, "naprawa", False) else ""))
+    for o in getattr(w, "ostrzezenia", []):
+        print(f"UWAGA [{o['kod']}]: {o['tekst']}")
+    if getattr(w, "dane_do_pelnej_oceny", []):
+        print("Do pełnej oceny sprawy potrzebne byłyby jeszcze: " +
+              "; ".join(f"{d['dana']} ({d['dlaczego']})" for d in w.dane_do_pelnej_oceny))
     if getattr(w, "przeglad", False):
         print("(odpowiedź przeglądowa – pytanie ogólne albo bez danych o sytuacji)")
     if getattr(w, "dopytanie", ""):

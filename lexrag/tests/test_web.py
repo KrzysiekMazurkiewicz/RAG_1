@@ -82,10 +82,8 @@ def test_wgranie_ustawy_i_dokumentu_oraz_pytanie(klient):
     assert w["trafienia"][0]["id"] == "test:art138:ust3"
     assert klient.get("/api/jednostka/test:art138:ust3").json()["akt_kod"] == "test"
     assert klient.get("/api/jednostka/nie:ma").status_code == 404
-    assert w["status_weryfikacji"] == "" and w["zrodla"] == [] and w["slad_url"] == f"/api/slad/{w['id_odpowiedzi']}"
-    s2 = klient.get(w["slad_url"]).json()                                   # ślad diagnostyczny zapisany na dysku
-    assert s2["kontekst"][0] == "test:art138:ust3" and s2["trafienia"][0]["id"] == "test:art138:ust3"
-    assert klient.get("/api/slad/" + "0" * 32).status_code == 404
+    assert w["status_weryfikacji"] == "" and w["zrodla"] == [] and w["id_odpowiedzi"] == w["trace_id"]
+    assert w["slad_url"] is None and not os.path.exists(os.path.join(web.KATALOG_DANYCH, "slady"))   # ślad domyślnie wyłączony
     assert next(a for a in s["indeks"]["akty"] if a["kod"] == "test")["wersja"] == "tj. Dz.U. 2026 poz. 1"
     assert next(a for a in s["indeks"]["akty"] if a["kod"] == "pnps")["wersja"] == "3.2"
     akt = next(a for a in s["indeks"]["akty"] if a["kod"] == "test")
@@ -126,3 +124,56 @@ def test_opinie_od_zgloszenia_do_eksportu(klient):
     assert klient.get("/api/opinie?status=zatwierdzona").json()[0]["musi_zawierac"] == ["3 lata"]
     e = klient.get("/api/opinie/eksport").json()
     assert e["liczba"] == 1 and "test:art138:ust3" in e["jsonl"] and "3 lata" in e["jsonl"]
+
+
+def _wgraj_testowa(klient):
+    with open(os.path.join(DANE, "ustawa_testowa.txt"), "rb") as f:
+        r = klient.post("/api/wgraj", files={"plik": ("ustawa.txt", f, "text/plain")},
+                        data={"kod": "test", "akt": "Ustawa testowa", "typ": "ustawa", "wersja": "tj. testowy"})
+    assert r.status_code == 200, r.text
+    assert _czekaj(klient)["status"] == "gotowe"
+
+
+def test_slad_domyslnie_wylaczony_opt_in_dostep_i_retencja(klient):
+    """Ślad zawiera pełną treść pytań i prompty: wyłączony domyślnie, włączany na jedno pytanie albo globalnie,
+    czytany tylko z adresu lokalnego albo z tokenem, a stare pliki są usuwane (retencja)."""
+    from lexrag import config
+    stare = (config.KONFIG.slad_wlaczony, config.KONFIG.slad_token, config.KONFIG.slad_dni)
+    try:
+        _wgraj_testowa(klient)
+        pytanie = {"pytanie": "za jaki okres można żądać zwrotu nienależnie pobranych świadczeń"}
+        w0 = klient.post("/api/pytanie", json=pytanie).json()
+        assert w0["slad_url"] is None and klient.get(f"/api/slad/{w0['trace_id']}").status_code in (403, 404)
+        w = klient.post("/api/pytanie", json={**pytanie, "slad": True}).json()           # opt-in na jedno pytanie
+        assert w["slad_url"] == f"/api/slad/{w['trace_id']}"
+        assert klient.get(w["slad_url"]).status_code == 403                                # TestClient to nie adres lokalny
+        config.ustaw(slad_token="sekret")
+        assert klient.get(w["slad_url"], headers={"X-Lexrag-Token": "zly"}).status_code == 403
+        slad = klient.get(w["slad_url"], headers={"X-Lexrag-Token": "sekret"}).json()
+        assert slad["trace_id"] == w["trace_id"] and slad["pytanie"].startswith("za jaki okres")
+        assert slad["kontekst"][0] == "test:art138:ust3" and slad["trafienia"][0]["id"] == "test:art138:ust3"
+        assert slad["wynik"]["tryb"] == "retrieval-only" and "konfiguracja" in slad and "llm_api_key" not in slad["konfiguracja"]
+        assert klient.get("/api/slad/" + "0" * 32, headers={"X-Lexrag-Token": "sekret"}).status_code == 404
+        # retencja: plik starszy niż LEXRAG_TRACE_DAYS znika przy następnym zapisie
+        katalog = os.path.join(web.KATALOG_DANYCH, "slady")
+        stary = os.path.join(katalog, f"{w['trace_id']}.json")
+        dawno = time.time() - 30 * 86400
+        os.utime(stary, (dawno, dawno))
+        config.ustaw(slad_wlaczony=True)                                                    # globalne włączenie
+        w2 = klient.post("/api/pytanie", json=pytanie).json()
+        assert w2["slad_url"] is not None and not os.path.exists(stary)
+        assert os.path.exists(os.path.join(katalog, f"{w2['trace_id']}.json"))
+    finally:
+        config.ustaw(slad_wlaczony=stare[0], slad_token=stare[1], slad_dni=stare[2])
+
+
+def test_konfiguracja_w_sladzie_bez_sekretow(monkeypatch):
+    import dataclasses
+    import json
+
+    from lexrag import config
+    monkeypatch.setattr(config, "KONFIG", dataclasses.replace(
+        config.KONFIG, llm_base_url="https://uzytkownik:haslo@serwer:11434/v1", llm_api_key="TAJNY-KLUCZ"))
+    zrzut = json.dumps(config.konfiguracja_do_sladu(), ensure_ascii=False)
+    assert "TAJNY-KLUCZ" not in zrzut and "haslo" not in zrzut and "uzytkownik" not in zrzut
+    assert "serwer:11434" in zrzut

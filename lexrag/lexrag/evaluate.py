@@ -163,6 +163,7 @@ def ewaluuj_odpowiedzi(indeks: Indeks, zloty: list[dict], na_dzien: Optional[str
             "brak_fraz": brak_fraz, "zakazane_frazy": zakazane, "frazy_ok": frazy_ok,
             "zdania_usuniete": o.zdania_usuniete, "warianty": o.warianty,
             "status_weryfikacji": o.status_weryfikacji, "naprawa": o.naprawa, "przeglad": o.przeglad,
+            "ostrzezenia": [x["kod"] for x in o.ostrzezenia],
             "poprawna": odpowiedziano and cytat_ok is not False and frazy_ok is not False,
             "czas_s": round(time.time() - t0, 1), "czasy": o.czasy,
         }
@@ -197,6 +198,9 @@ def raport_odpowiedzi(wyniki: list[dict]) -> str:
             statusy[s] = statusy.get(s, 0) + 1
         linie.append("  statusy weryfikacji: " + ", ".join(f"{k}: {v}" for k, v in sorted(statusy.items()))
                      + f"; odpowiedzi po cyklu naprawczym: {sum(1 for r in wyniki if r.get('naprawa'))}")
+        zw = [r for r in odp if r.get('status_weryfikacji') == 'verified']
+        linie.append(f"  zweryfikowane (verified) wśród odpowiedzi: {len(zw)}/{m}; "
+                     f"poprawne i zweryfikowane: {sum(1 for r in zw if r['poprawna'])}")
     zle = [r for r in wyniki if r["tryb"] == "odpowiedz" and not r["poprawna"]]
     if zle:
         linie.append("\nOdpowiedzi NIEPOPRAWNE (do przejrzenia):")

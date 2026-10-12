@@ -13,8 +13,11 @@ def test_pytanie_haslowe_wykrywa_krotkie_bez_zaimka():
     assert not pytanie_haslowe("")
 
 
-def test_prompt_przegladowy_zada_regul_i_dopytania():
-    assert "PRZEGLĄDOWO" in PROMPT_PRZEGLAD and "reguły ogólnej" in PROMPT_PRZEGLAD
+def test_prompt_przegladowy_ogranicza_sie_do_zakresu_pytania():
+    p = " ".join(PROMPT_PRZEGLAD.split())
+    assert "wyłącznie w zakresie pytania" in p and "zasady ogólnej" in p and "istotne wyjątki" in p
+    assert "nie oznacza obowiązku jego wykorzystania" in p and "nie dopytuj" in p
+    assert "wszystkie sytuacje" not in p and "Ostatnie zdanie" not in p     # stary nakaz katalogu i obowiązkowego dopytania
 
 
 def test_alternatywy_id_w_oczekiwanych():

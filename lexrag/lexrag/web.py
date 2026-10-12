@@ -12,6 +12,7 @@ import json
 import logging
 import os
 import re
+import secrets
 import shutil
 import threading
 import urllib.error
@@ -23,7 +24,7 @@ from contextlib import asynccontextmanager
 from dataclasses import asdict
 from typing import Optional
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
@@ -217,6 +218,7 @@ class Pytanie(BaseModel):
     pytanie: str
     na_dzien: Optional[str] = None
     analiza: Optional[bool] = None
+    slad: Optional[bool] = None      # zapisz pełny ślad diagnostyczny tej jednej odpowiedzi (domyślnie: wg LEXRAG_TRACE)
 
 
 @app.get("/api/stan")
@@ -230,6 +232,7 @@ def stan() -> dict:
         "llm": {"model": KONFIG.llm_model, "baza": KONFIG.llm_base_url, "dostepny": llm_dostepny(),
                 "polaczenie": _sprawdz_polaczenie()},
         "zadanie": STAN.zadanie,
+        "slad": {"wlaczony": KONFIG.slad_wlaczony, "dni": KONFIG.slad_dni},
     }
 
 
@@ -271,26 +274,32 @@ def pytanie(p: Pytanie) -> dict:
     tresc = p.pytanie.strip()
     if not tresc:
         raise HTTPException(400, "Puste pytanie.")
-    # bez daty pytamy o stan prawny na dziś – przy kilku wersjach aktu w indeksie wybiera to bieżącą
-    na_dzien = (p.na_dzien or "").strip() or date.today().isoformat()
-    w = odpowiedz(idx, tresc, na_dzien=na_dzien, analiza=p.analiza)
-    ident = uuid.uuid4().hex
-    _zapisz_slad(ident, w.slad)
+    # bez daty pytamy o stan prawny na dziś – przy kilku wersjach aktu w indeksie wybiera to bieżącą;
+    # ostrzeżenia o stanie prawnym dostaje tylko ten, kto datę wskazał sam
+    wskazana = (p.na_dzien or "").strip()
+    na_dzien = wskazana or date.today().isoformat()
+    w = odpowiedz(idx, tresc, na_dzien=na_dzien, analiza=p.analiza, data_wskazana=bool(wskazana))
+    ident = w.slad.get("trace_id") or uuid.uuid4().hex
+    slad_zapisany = bool(KONFIG.slad_wlaczony or p.slad)
+    if slad_zapisany:
+        _zapisz_slad(ident, w.slad)
     _dopisz("odpowiedzi.jsonl", {
         "id": ident, "czas": datetime.now().isoformat(timespec="seconds"), "pytanie": _maskuj(tresc),
         "na_dzien": na_dzien, "tryb": w.tryb, "tekst": w.tekst, "cytowane": [j.id for j in w.cytaty],
         "kontekst": [j.id for j in w.kontekst], "model": KONFIG.llm_model, "indeks": KATALOG_INDEKSU,
         "przeglad": w.przeglad, "czasy": w.czasy, "status_weryfikacji": w.status_weryfikacji,
-        "naprawa": w.naprawa, "uwagi": w.uwagi, "zdania_usuniete": w.zdania_usuniete, "warianty": w.warianty,
-        "brakujace_parametry": w.brakujace_parametry, "dopytanie": w.dopytanie})
+        "ostrzezenia": [o["kod"] for o in w.ostrzezenia], "naprawa": w.naprawa, "uwagi": w.uwagi,
+        "zdania_usuniete": w.zdania_usuniete, "warianty": w.warianty,
+        "brakujace_parametry": w.brakujace_parametry, "dopytanie": w.dopytanie, "slad_zapisany": slad_zapisany})
     akty = {a["kod"]: a for a in _akty(idx)}
     zrodla = [akty[k] for k in dict.fromkeys(j.akt_kod for j in w.cytaty) if k in akty]
     return {
-        "id_odpowiedzi": ident, "slad_url": f"/api/slad/{ident}",
+        "id_odpowiedzi": ident, "trace_id": ident, "slad_url": f"/api/slad/{ident}" if slad_zapisany else None,
         "tryb": w.tryb, "tekst": w.tekst, "uwagi": w.uwagi, "czasy": w.czasy, "warianty": w.warianty,
-        "brakujace_parametry": w.brakujace_parametry, "zdania_usuniete": w.zdania_usuniete,
-        "przeglad": w.przeglad, "dopytanie": w.dopytanie,
-        "status_weryfikacji": w.status_weryfikacji, "naprawa": w.naprawa, "zrodla": zrodla,
+        "brakujace_parametry": w.brakujace_parametry, "dane_do_pelnej_oceny": w.dane_do_pelnej_oceny,
+        "zdania_usuniete": w.zdania_usuniete, "przeglad": w.przeglad, "dopytanie": w.dopytanie,
+        "status_weryfikacji": w.status_weryfikacji, "ostrzezenia": w.ostrzezenia, "naprawa": w.naprawa,
+        "zrodla": zrodla,
         "cytaty": [_jednostka_json(j) for j in w.cytaty],
         "trafienia": [{"id": t.id, "wynik": round(float(t.wynik), 3), "zrodlo": t.zrodlo,
                        "sciezka": idx.jednostki[t.id].sciezka, "tekst": idx.jednostki[t.id].tekst}
@@ -299,15 +308,29 @@ def pytanie(p: Pytanie) -> dict:
     }
 
 
+def _dostep_do_sladu(request: Request) -> bool:
+    """Ślad zawiera pełną treść pytań i prompty (dane osobowe): czytać go może tylko żądanie z adresu lokalnego
+    albo z poprawnym tokenem LEXRAG_TRACE_TOKEN w nagłówku X-Lexrag-Token (np. warstwa C# po uwierzytelnieniu)."""
+    token = KONFIG.slad_token
+    if token and secrets.compare_digest(request.headers.get("x-lexrag-token", ""), token):
+        return True
+    host = request.client.host if request.client else ""
+    return host in ("127.0.0.1", "::1", "localhost")
+
+
 @app.get("/api/slad/{ident}")
-def slad(ident: str) -> dict:
-    """Pełny ślad diagnostyczny odpowiedzi: analiza, zapytania, ranking, kontekst, wszystkie wiadomości do modelu
-    i jego surowe odpowiedzi, werdykty kontroli, cykl naprawczy."""
+def slad(ident: str, request: Request) -> dict:
+    """Pełny ślad diagnostyczny odpowiedzi (jeśli został zapisany): analiza, zapytania, ranking, kontekst, wszystkie
+    wiadomości do modelu i jego surowe odpowiedzi, werdykty kontroli, naprawa, wynik, konfiguracja bez sekretów."""
+    if not _dostep_do_sladu(request):
+        raise HTTPException(403, "Ślad diagnostyczny: dostęp tylko z adresu lokalnego albo z tokenem "
+                                 "(nagłówek X-Lexrag-Token).")
     if not re.fullmatch(r"[0-9a-f]{32}", ident):
         raise HTTPException(400, "Zły identyfikator.")
     sciezka = os.path.join(KATALOG_DANYCH, "slady", f"{ident}.json")
     if not os.path.exists(sciezka):
-        raise HTTPException(404, "Nie ma śladu o tym identyfikatorze.")
+        raise HTTPException(404, "Nie ma śladu o tym identyfikatorze (diagnostyka jest domyślnie wyłączona albo ślad "
+                                 "wygasł).")
     with open(sciezka, encoding="utf-8") as f:
         return json.load(f)
 
@@ -378,10 +401,27 @@ def _plik_danych(nazwa: str) -> str:
     return os.path.join(KATALOG_DANYCH, nazwa)
 
 
+def _czysc_slady() -> int:
+    """Retencja: usuwa ślady starsze niż LEXRAG_TRACE_DAYS dni (liczone od czasu zapisu pliku)."""
+    katalog = os.path.join(KATALOG_DANYCH, "slady")
+    if not os.path.isdir(katalog):
+        return 0
+    granica = time.time() - KONFIG.slad_dni * 86400
+    usuniete = 0
+    for nazwa in os.listdir(katalog):
+        sciezka = os.path.join(katalog, nazwa)
+        if nazwa.endswith(".json") and os.path.getmtime(sciezka) < granica:
+            os.remove(sciezka)
+            usuniete += 1
+    return usuniete
+
+
 def _zapisz_slad(ident: str, slad: dict) -> None:
-    """Osobny plik JSON na odpowiedź (prompty, surowe wyjścia modelu, werdykty); ciągi 11 cyfr maskowane."""
+    """Osobny plik JSON na odpowiedź (prompty, surowe wyjścia modelu, werdykty). Ciągi 11 cyfr są maskowane w zapisie,
+    a nie w żądaniu do modelu – model dostaje dokładnie to, co wpisał użytkownik. Przy każdym zapisie działa retencja."""
     katalog = os.path.join(KATALOG_DANYCH, "slady")
     os.makedirs(katalog, exist_ok=True)
+    _czysc_slady()
     with open(os.path.join(katalog, f"{ident}.json"), "w", encoding="utf-8") as f:
         f.write(_maskuj(json.dumps(slad, ensure_ascii=False, indent=1, default=str)))
 

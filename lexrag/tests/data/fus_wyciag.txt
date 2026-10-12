@@ -1,0 +1,32 @@
+# Wyciąg do testów: art. 24, 27, 29 i 31 ustawy o emeryturach i rentach z FUS, dosłowny tekst z tekstu
+# jednolitego Dz.U. 2024 poz. 1631 (data/units/fus.jsonl, źródło data/raw/DU_2024_1631.pdf). Oczekiwane
+# twierdzenia w testach opieraj na tym pliku, nie na pamięci. Linie z # są pomijane przez test.
+DZIAŁ II
+Emerytury
+Rozdział 1
+Emerytura dla ubezpieczonych urodzonych po dniu 31 grudnia 1948 r.
+Art. 24.
+1. Ubezpieczonym urodzonym po dniu 31 grudnia 1948 r. przysługuje emerytura po osiągnięciu wieku emerytalnego wynoszącego co najmniej 60 lat dla kobiet i co najmniej 65 lat dla mężczyzn, z zastrzeżeniem art. 46, 47, 50, 50a, 50e i 184, a także art. 88a ustawy z dnia 26 stycznia 1982 r. – Karta Nauczyciela (Dz. U. z 2024 r. poz. 986).
+1a. (uchylony)
+1b. (uchylony)
+2. Dla ubezpieczonych urodzonych po dniu 31 grudnia 1948 r., zatrudnionych w szczególnych warunkach lub szczególnym charakterze, z wyjątkiem ubezpieczonych mających prawo do emerytury na warunkach określonych w art. 32, 33, 39, 40, 46, 50, 50a i 50e, 184 oraz w art. 88 ustawy, o której mowa w art. 150 , zostaną ustanowione emerytury pomostowe.
+2a. Ubezpieczonym spełniającym warunki określone w art. 50a lub 50e przysługuje emerytura po osiągnięciu wieku i okresów pracy lub okresu pracy, określonych w tych przepisach.
+3. Zasady, warunki i tryb ustanawiania emerytur, o których mowa w ust. 2, określi odrębna ustawa.
+Rozdział 2
+Emerytura dla ubezpieczonych urodzonych przed dniem 1 stycznia 1949 r.
+Art. 27.
+Ubezpieczonym urodzonym przed dniem 1 stycznia 1949 r. przysługuje emerytura, jeżeli spełnili łącznie następujące warunki:
+1) osiągnęli wiek emerytalny wynoszący co najmniej 60 lat dla kobiet i co najmniej 65 lat dla mężczyzn;
+2) mają okres składkowy i nieskładkowy wynoszący co najmniej 20 lat dla kobiet i 25 lat dla mężczyzn, z zastrzeżeniem art. 27a.
+Art. 29.
+1. Ubezpieczeni urodzeni przed dniem 1 stycznia 1949 r., którzy nie osiągnęli wieku emerytalnego określonego w art. 27 pkt 1, mogą przejść na emeryturę:
+1) kobieta – po osiągnięciu wieku 55 lat, jeżeli ma co najmniej 30-letni okres składkowy i nieskładkowy albo jeżeli ma co najmniej 20-letni okres składkowy i nieskładkowy oraz została uznana za całkowicie niezdolną do pracy;
+2) mężczyzna – po osiągnięciu wieku 60 lat, jeżeli ma co najmniej 35-letni okres składkowy i nieskładkowy albo jeżeli ma co najmniej 25-letni okres składkowy i nieskładkowy oraz został uznany za całkowicie niezdolnego do pracy.
+2. Emerytura, o której mowa w ust. 1, przysługuje ubezpieczonym, którzy:
+1) ostatnio, przed zgłoszeniem wniosku o emeryturę, byli pracownikami oraz
+2) w okresie ostatnich 24 miesięcy podlegania ubezpieczeniu społecznemu lub ubezpieczeniom emerytalnemu i rentowym pozostawali w stosunku pracy co najmniej przez 6 miesięcy, chyba że w dniu zgłoszenia wniosku o emeryturę są uprawnieni do renty z tytułu niezdolności do pracy.
+3. Spełnienia warunków, o których mowa w ust. 2, nie wymaga się od ubezpieczonych, którzy przez cały wymagany okres, o którym mowa w ust. 1 pkt 1 i 2, podlegali ubezpieczeniu społecznemu lub ubezpieczeniom emerytalnemu i rentowym z tytułu pozostawania w stosunku pracy.
+Art. 31.
+Osoby urodzone przed dniem 1 stycznia 1949 r., uprawnione do renty z tytułu niezdolności do pracy spowodowanej wypadkiem przy pracy, wypadkiem przy wykonywaniu pozarolniczej działalności gospodarczej, działalności twórczej lub artystycznej, umowy agencyjnej lub umowy zlecenia albo przy wykonywaniu przez osoby duchowne i zakonne czynności religijnych lub czynności związanych z powierzonymi funkcjami duszpasterskimi lub zakonnymi, wypadkiem w drodze do pracy lub z pracy zaistniałym do dnia 31 grudnia 2002 r., albo wskutek choroby zawodowej, mogą przejść na emeryturę:
+1) kobieta – po osiągnięciu wieku 55 lat, jeżeli ma co najmniej 20-letni okres składkowy i nieskładkowy;
+2) mężczyzna – po osiągnięciu wieku 60 lat, jeżeli ma co najmniej 25-letni okres składkowy i nieskładkowy.
