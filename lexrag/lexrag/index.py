@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
 from typing import Optional
 
 import numpy as np
@@ -23,6 +24,11 @@ from .tokenize import lematyzacja_dostepna, tokenizuj
 log = logging.getLogger("lexrag")
 
 _MODEL_EMB = None
+# Modele (embeddingi, reranker) są współdzielone przez wszystkie żądania. Apple GPU (MPS) nie znosi równoległych
+# wywołań z kilku wątków (sterownik przerywa proces: "command encoder is already encoding"), więc każde
+# wywołanie modelu idzie pod blokadą, a duże partie są dzielone, żeby pytanie nie czekało na cały budowany indeks.
+BLOKADA_MODELI = threading.RLock()
+PARTIA_EMBEDDINGOW = 32
 
 
 def urzadzenie() -> str:
@@ -57,18 +63,20 @@ def model_embeddingow():
     if KONFIG.emb_wylacz:
         return None
     if _MODEL_EMB is None:
-        try:
-            from sentence_transformers import SentenceTransformer  # type: ignore
-        except ImportError:
-            log.warning("sentence-transformers niezainstalowane – działa tylko BM25 "
-                        "(pip install -r requirements-ml.txt).")
-            return None
-        try:
-            _MODEL_EMB = SentenceTransformer(KONFIG.emb_model, device=urzadzenie(), model_kwargs=argumenty_modelu())
-            log.info("Embeddingi: %s na %s", KONFIG.emb_model, urzadzenie())
-        except Exception as e:  # brak modelu offline itp.
-            log.warning("Nie udało się załadować modelu embeddingów %s: %s", KONFIG.emb_model, e)
-            return None
+        with BLOKADA_MODELI:
+            if _MODEL_EMB is None:               # drugi wątek mógł już załadować model
+                try:
+                    from sentence_transformers import SentenceTransformer  # type: ignore
+                except ImportError:
+                    log.warning("sentence-transformers niezainstalowane – działa tylko BM25 "
+                                "(pip install -r requirements-ml.txt).")
+                    return None
+                try:
+                    _MODEL_EMB = SentenceTransformer(KONFIG.emb_model, device=urzadzenie(), model_kwargs=argumenty_modelu())
+                    log.info("Embeddingi: %s na %s", KONFIG.emb_model, urzadzenie())
+                except Exception as e:  # brak modelu offline itp.
+                    log.warning("Nie udało się załadować modelu embeddingów %s: %s", KONFIG.emb_model, e)
+                    return None
     return _MODEL_EMB
 
 
@@ -76,9 +84,15 @@ def embedduj(teksty: list[str], prefiks: str) -> Optional[np.ndarray]:
     m = model_embeddingow()
     if m is None:
         return None
-    wek = m.encode([prefiks + t for t in teksty], normalize_embeddings=True,
-                   batch_size=16, show_progress_bar=len(teksty) > 64)
-    return np.asarray(wek, dtype=np.float32)
+    partie = []
+    for i in range(0, len(teksty), PARTIA_EMBEDDINGOW):
+        with BLOKADA_MODELI:
+            wek = m.encode([prefiks + t for t in teksty[i:i + PARTIA_EMBEDDINGOW]], normalize_embeddings=True,
+                           batch_size=16, show_progress_bar=False)
+        partie.append(np.asarray(wek, dtype=np.float32))
+        if len(teksty) > 64 and (i // PARTIA_EMBEDDINGOW) % 20 == 19:
+            log.info("Embeddingi: %d/%d", min(i + PARTIA_EMBEDDINGOW, len(teksty)), len(teksty))
+    return np.concatenate(partie) if partie else np.zeros((0, 0), dtype=np.float32)
 
 
 class Indeks:

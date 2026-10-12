@@ -16,7 +16,7 @@ from typing import Optional
 import numpy as np
 
 from .config import KONFIG
-from .index import Indeks, embedduj
+from .index import BLOKADA_MODELI, Indeks, embedduj
 from .models import Jednostka
 from .tokenize import tokenizuj
 
@@ -73,15 +73,17 @@ def _reranker():
     if KONFIG.reranker_wylacz:
         return None
     if _RERANKER is None:
-        try:
-            from sentence_transformers import CrossEncoder  # type: ignore
-            from .index import argumenty_modelu, urzadzenie
-            _RERANKER = CrossEncoder(KONFIG.reranker_model, device=urzadzenie(), max_length=512,
-                                     model_kwargs=argumenty_modelu())
-            log.info("Reranker: %s na %s", KONFIG.reranker_model, urzadzenie())
-        except Exception as e:
-            log.warning("Reranker niedostępny (%s) – zostaje kolejność z RRF.", e)
-            _RERANKER = False
+        with BLOKADA_MODELI:
+            if _RERANKER is None:               # drugi wątek mógł już załadować model
+                try:
+                    from sentence_transformers import CrossEncoder  # type: ignore
+                    from .index import argumenty_modelu, urzadzenie
+                    _RERANKER = CrossEncoder(KONFIG.reranker_model, device=urzadzenie(), max_length=512,
+                                             model_kwargs=argumenty_modelu())
+                    log.info("Reranker: %s na %s", KONFIG.reranker_model, urzadzenie())
+                except Exception as e:
+                    log.warning("Reranker niedostępny (%s) – zostaje kolejność z RRF.", e)
+                    _RERANKER = False
     return _RERANKER or None
 
 
@@ -93,7 +95,8 @@ def rerank(indeks: Indeks, pytanie: str, kandydaci: list[Trafienie],
     if m is None or not kandydaci:
         return kandydaci[:top_n]
     pary = [(pytanie, indeks.jednostki[t.id].tekst_do_indeksu()[:2000]) for t in kandydaci]
-    oceny = m.predict(pary, batch_size=8, show_progress_bar=False)
+    with BLOKADA_MODELI:                                  # jedno wywołanie modelu naraz (MPS nie jest wielowątkowe)
+        oceny = m.predict(pary, batch_size=8, show_progress_bar=False)
     out = [Trafienie(t.id, float(o), "rerank") for t, o in zip(kandydaci, oceny)]
     return sorted(out, key=lambda x: -x.wynik)[:top_n]
 

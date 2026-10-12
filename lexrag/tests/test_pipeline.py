@@ -292,3 +292,36 @@ def test_awaria_weryfikatora_daje_status_niezweryfikowana(indeks, monkeypatch):
     w = generate.odpowiedz(indeks, "za jaki okres można żądać zwrotu", uzyj_emb=False, uzyj_reranker=False)
     assert w.tryb == "odpowiedz" and w.status_weryfikacji == "niezweryfikowana" and not w.naprawa
     assert "NIEZWERYFIKOWANA" in w.uwagi and w.slad["kontrola"][0]["blad"] == "model padł"
+
+
+def test_modele_sa_wywolywane_pojedynczo(monkeypatch):
+    """Równoległe żądania nie mogą wołać modelu naraz (Apple GPU przerywa wtedy cały proces); duże partie są dzielone,
+    żeby pytanie nie czekało na cały budowany indeks."""
+    import threading
+    import time
+
+    import numpy as np
+
+    from lexrag import index
+
+    stan = {"w": 0, "max": 0, "wywolan": 0}
+
+    class Udawany:
+        def encode(self, teksty, **kw):
+            stan["w"] += 1
+            stan["wywolan"] += 1
+            stan["max"] = max(stan["max"], stan["w"])
+            time.sleep(0.03)
+            stan["w"] -= 1
+            return np.ones((len(teksty), 4), dtype=np.float32)
+
+    monkeypatch.setattr(index, "_MODEL_EMB", Udawany())
+    wyniki = []
+    watki = [threading.Thread(target=lambda: wyniki.append(index.embedduj(["a"] * 70, ""))) for _ in range(4)]
+    for w in watki:
+        w.start()
+    for w in watki:
+        w.join()
+    assert stan["max"] == 1                                       # nigdy dwa wywołania naraz
+    assert stan["wywolan"] == 4 * 3                               # 70 tekstów = 3 partie po 32, osobna blokada na partię
+    assert all(w.shape == (70, 4) for w in wyniki)
