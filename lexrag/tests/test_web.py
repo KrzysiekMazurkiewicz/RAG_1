@@ -149,11 +149,21 @@ def test_slad_domyslnie_wylaczony_opt_in_dostep_i_retencja(klient):
         assert klient.get(w["slad_url"]).status_code == 403                                # TestClient to nie adres lokalny
         config.ustaw(slad_token="sekret")
         assert klient.get(w["slad_url"], headers={"X-Lexrag-Token": "zly"}).status_code == 403
+        assert klient.get(f"{w['slad_url']}?token=zly").status_code == 403
         slad = klient.get(w["slad_url"], headers={"X-Lexrag-Token": "sekret"}).json()
         assert slad["trace_id"] == w["trace_id"] and slad["pytanie"].startswith("za jaki okres")
+        slad_q = klient.get(f"{w['slad_url']}?token=sekret").json()
+        assert slad_q["trace_id"] == w["trace_id"]
         assert slad["kontekst"][0] == "test:art138:ust3" and slad["trafienia"][0]["id"] == "test:art138:ust3"
         assert slad["wynik"]["tryb"] == "retrieval-only" and "konfiguracja" in slad and "llm_api_key" not in slad["konfiguracja"]
         assert klient.get("/api/slad/" + "0" * 32, headers={"X-Lexrag-Token": "sekret"}).status_code == 404
+        # test bezpiecznego maskowania PESEL bez niszczenia liczb w JSON
+        test_slad = {"pytanie": "mam PESEL 90010112345", "liczba_11_cyfr": 12345678901, "zagniezdzone": {"tekst": "PESEL 80010112345"}}
+        web._zapisz_slad("1234567890abcdef1234567890abcdef", test_slad)
+        odczyt = klient.get("/api/slad/1234567890abcdef1234567890abcdef?token=sekret").json()
+        assert odczyt["liczba_11_cyfr"] == 12345678901
+        assert "90010112345" not in odczyt["pytanie"] and "***********" in odczyt["pytanie"]
+        assert "80010112345" not in odczyt["zagniezdzone"]["tekst"] and "***********" in odczyt["zagniezdzone"]["tekst"]
         # retencja: plik starszy niż LEXRAG_TRACE_DAYS znika przy następnym zapisie
         katalog = os.path.join(web.KATALOG_DANYCH, "slady")
         stary = os.path.join(katalog, f"{w['trace_id']}.json")
@@ -162,6 +172,7 @@ def test_slad_domyslnie_wylaczony_opt_in_dostep_i_retencja(klient):
         config.ustaw(slad_wlaczony=True)                                                    # globalne włączenie
         w2 = klient.post("/api/pytanie", json=pytanie).json()
         assert w2["slad_url"] is not None and not os.path.exists(stary)
+        assert "?token=sekret" in w2["slad_url"]                                           # token w linku dla przeglądarki
         assert os.path.exists(os.path.join(katalog, f"{w2['trace_id']}.json"))
     finally:
         config.ustaw(slad_wlaczony=stare[0], slad_token=stare[1], slad_dni=stare[2])

@@ -34,4 +34,4 @@ def do_markdown(wejscie: str, wyjscie: str) -> str:
             f.write(pdf_do_tekstu(wejscie))
         log.warning("PDF przez PyMuPDF – bez nagłówków i tabel; lepiej docling.")
         return wyjscie
-    raise SystemExit("Zainstaluj pandoc (DOCX) albo `pip install docling` (DOCX/PDF z tabelami).")
+    raise RuntimeError("Zainstaluj pandoc (DOCX) albo `pip install docling` (DOCX/PDF z tabelami).")

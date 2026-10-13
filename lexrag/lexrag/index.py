@@ -123,10 +123,10 @@ class Indeks:
         for p in pliki_jsonl:
             jednostki.extend(wczytaj_jsonl(p))
         if not jednostki:
-            raise SystemExit("Brak jednostek do zindeksowania.")
+            raise ValueError("Brak jednostek do zindeksowania.")
         duplikaty = len(jednostki) - len({j.id for j in jednostki})
         if duplikaty:
-            raise SystemExit(f"Zduplikowane id jednostek: {duplikaty} (użyj innych prefiksów --kod).")
+            raise ValueError(f"Zduplikowane id jednostek: {duplikaty} (użyj innych prefiksów --kod).")
 
         szukalne = [j.id for j in jednostki if j.szukalny and j.tekst.strip()]
         mapa = {j.id: j for j in jednostki}

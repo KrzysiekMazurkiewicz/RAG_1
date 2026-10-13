@@ -22,7 +22,7 @@ from datetime import date, datetime
 import time
 from contextlib import asynccontextmanager
 from dataclasses import asdict
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse
@@ -169,7 +169,7 @@ def _zadanie_opisz(kod: str) -> None:
         out = os.path.join(KATALOG_DANYCH, "units", f"{kod}.jsonl")
         n = _opisz_jednostki(kod, out)
         _przebuduj_indeks(kod, f"{n} opisów kontekstowych")
-    except Exception as e:
+    except BaseException as e:
         log.exception("Opisy %s nieudane", kod)
         STAN.zadanie = {"status": "blad", "kod": kod, "komunikat": f"{type(e).__name__}: {e}"}
 
@@ -208,7 +208,7 @@ def _zadanie_wgraj(sciezka: str, kod: str, akt: str, typ: str,
             else:
                 opis_info = ", opisy pominięte (brak modelu)"
         _przebuduj_indeks(kod, f"{len(jednostki)} jednostek ({st}){opis_info}")
-    except Exception as e:
+    except BaseException as e:
         log.exception("Wgrywanie %s nieudane", kod)
         STAN.zadanie = {"status": "blad", "kod": kod, "komunikat": f"{type(e).__name__}: {e}"}
 
@@ -293,8 +293,10 @@ def pytanie(p: Pytanie) -> dict:
         "brakujace_parametry": w.brakujace_parametry, "dopytanie": w.dopytanie, "slad_zapisany": slad_zapisany})
     akty = {a["kod"]: a for a in _akty(idx)}
     zrodla = [akty[k] for k in dict.fromkeys(j.akt_kod for j in w.cytaty) if k in akty]
+    slad_token_param = f"?token={KONFIG.slad_token}" if (KONFIG.slad_token and slad_zapisany) else ""
     return {
-        "id_odpowiedzi": ident, "trace_id": ident, "slad_url": f"/api/slad/{ident}" if slad_zapisany else None,
+        "id_odpowiedzi": ident, "trace_id": ident,
+        "slad_url": f"/api/slad/{ident}{slad_token_param}" if slad_zapisany else None,
         "tryb": w.tryb, "tekst": w.tekst, "uwagi": w.uwagi, "czasy": w.czasy, "warianty": w.warianty,
         "brakujace_parametry": w.brakujace_parametry, "dane_do_pelnej_oceny": w.dane_do_pelnej_oceny,
         "zdania_usuniete": w.zdania_usuniete, "przeglad": w.przeglad, "dopytanie": w.dopytanie,
@@ -310,10 +312,14 @@ def pytanie(p: Pytanie) -> dict:
 
 def _dostep_do_sladu(request: Request) -> bool:
     """Ślad zawiera pełną treść pytań i prompty (dane osobowe): czytać go może tylko żądanie z adresu lokalnego
-    albo z poprawnym tokenem LEXRAG_TRACE_TOKEN w nagłówku X-Lexrag-Token (np. warstwa C# po uwierzytelnieniu)."""
+    albo z poprawnym tokenem LEXRAG_TRACE_TOKEN w nagłówku X-Lexrag-Token lub w parametrze URL ?token=
+    (np. link w przeglądarce lub warstwa C# po uwierzytelnieniu)."""
     token = KONFIG.slad_token
-    if token and secrets.compare_digest(request.headers.get("x-lexrag-token", ""), token):
-        return True
+    if token:
+        naglowek = request.headers.get("x-lexrag-token", "")
+        parametr = request.query_params.get("token", "")
+        if (naglowek and secrets.compare_digest(naglowek, token)) or (parametr and secrets.compare_digest(parametr, token)):
+            return True
     host = request.client.host if request.client else ""
     return host in ("127.0.0.1", "::1", "localhost")
 
@@ -396,6 +402,18 @@ def _maskuj(tekst: str) -> str:
     return _RE_PESEL.sub("***********", tekst)
 
 
+def _maskuj_strukture(obj: Any) -> Any:
+    """Rekurencyjnie maskuje PESEL (ciągi 11 cyfr) w wartościach tekstowych wewnątrz struktur,
+    pozostawiając liczby, wartości bool itp. nienaruszone, aby uniknąć uszkodzenia składni JSON."""
+    if isinstance(obj, str):
+        return _maskuj(obj)
+    if isinstance(obj, dict):
+        return {k: _maskuj_strukture(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_maskuj_strukture(v) for v in obj]
+    return obj
+
+
 def _plik_danych(nazwa: str) -> str:
     os.makedirs(KATALOG_DANYCH, exist_ok=True)
     return os.path.join(KATALOG_DANYCH, nazwa)
@@ -422,8 +440,9 @@ def _zapisz_slad(ident: str, slad: dict) -> None:
     katalog = os.path.join(KATALOG_DANYCH, "slady")
     os.makedirs(katalog, exist_ok=True)
     _czysc_slady()
+    slad_bezpieczny = _maskuj_strukture(slad)
     with open(os.path.join(katalog, f"{ident}.json"), "w", encoding="utf-8") as f:
-        f.write(_maskuj(json.dumps(slad, ensure_ascii=False, indent=1, default=str)))
+        f.write(json.dumps(slad_bezpieczny, ensure_ascii=False, indent=1, default=str))
 
 
 def _dopisz(nazwa: str, rekord: dict) -> None:

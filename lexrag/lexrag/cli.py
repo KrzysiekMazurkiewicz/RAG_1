@@ -362,7 +362,10 @@ def main(argv=None) -> None:
 
     a = p.parse_args(argv)
     _log(a.verbose)
-    a.fn(a)
+    try:
+        a.fn(a)
+    except (RuntimeError, ValueError) as e:
+        sys.exit(f"BŁĄD: {e}")
 
 
 if __name__ == "__main__":

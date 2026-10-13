@@ -986,9 +986,12 @@ def _odpowiedz_llm(indeks: Indeks, pytanie: str, na_dzien: Optional[str], data_w
         return Odpowiedz(**kw, tryb="odmowa")
 
     if not kontekst:
-        brak_daty = _brak_wersji_na_date(indeks, na_dzien) if (data_wskazana and na_dzien) else None
+        brak_daty = _brak_wersji_na_date(indeks, na_dzien) if na_dzien else None
         if brak_daty:
-            return _odmowa(tekst=brak_daty, ostrzezenia=[{"kod": "brak_wersji_na_date", "tekst": brak_daty}], **wspolne)
+            komunikat = brak_daty if data_wskazana else (
+                f"Domyślnie sprawdzono stan prawny na dziś ({na_dzien}), ale {brak_daty[:1].lower() + brak_daty[1:]}"
+            )
+            return _odmowa(tekst=komunikat, ostrzezenia=[{"kod": "brak_wersji_na_date", "tekst": komunikat}], **wspolne)
         return _odmowa(tekst="Nie znaleziono przepisów pasujących do pytania.", **wspolne)
     if KONFIG.prog_rerank > 0 and traf and traf[0].zrodlo == "rerank":
         p = _sigmoid(traf[0].wynik)

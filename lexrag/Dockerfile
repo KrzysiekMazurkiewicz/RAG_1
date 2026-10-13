@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends pandoc curl && 
 WORKDIR /app
 COPY requirements-ml.txt requirements-web.txt ./
 RUN pip install torch --index-url ${TORCH_INDEX} \
- && pip install numpy simplemma pymupdf -r requirements-ml.txt -r requirements-web.txt
+ && pip install --extra-index-url ${TORCH_INDEX} numpy simplemma pymupdf -r requirements-ml.txt -r requirements-web.txt
 COPY lexrag ./lexrag
 COPY scripts ./scripts
 COPY data/golden ./data/golden

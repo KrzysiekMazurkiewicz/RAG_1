@@ -59,7 +59,7 @@ def _pymupdf():
             import fitz as pymupdf  # type: ignore  # starsze wersje
             return pymupdf
         except ImportError as e:
-            raise SystemExit("Do PDF potrzebny jest PyMuPDF: pip install pymupdf") from e
+            raise RuntimeError("Do PDF potrzebny jest PyMuPDF: pip install pymupdf") from e
 
 
 def pdf_do_tekstu(sciezka: str, tolerancja_pt: float = 0.5) -> str:
@@ -128,7 +128,7 @@ def wczytaj_dowolny(sciezka: str) -> str:
         import shutil
         import subprocess
         if not shutil.which("pandoc"):
-            raise SystemExit("Do DOCX potrzebny jest pandoc (brew install pandoc) albo zapisz plik jako PDF/TXT.")
+            raise RuntimeError("Do DOCX potrzebny jest pandoc (brew install pandoc) albo zapisz plik jako PDF/TXT.")
         return subprocess.run(["pandoc", sciezka, "-t", "plain", "--wrap=none"],
                               check=True, capture_output=True, text=True).stdout
     with open(sciezka, encoding="utf-8", errors="replace") as f:
@@ -149,7 +149,7 @@ def pobierz_akt(ident: str, katalog: str) -> str:
             json.dump(meta, f, ensure_ascii=False, indent=1)
         log.info("Akt: %s", meta.get("title", "?"))
     except urllib.error.HTTPError as e:
-        raise SystemExit(f"API Sejmu: HTTP {e.code} dla {ident} – sprawdź identyfikator (np. DU/2024/1631).") from e
+        raise RuntimeError(f"API Sejmu: HTTP {e.code} dla {ident} – sprawdź identyfikator (np. DU/2024/1631).") from e
 
     tekst = ""
     # PDF jest źródłem pierwszego wyboru: ma rozmiary czcionek, więc da się odciąć przypisy
@@ -169,7 +169,7 @@ def pobierz_akt(ident: str, katalog: str) -> str:
         except urllib.error.HTTPError:
             pass
     if len(tekst) < 2000:
-        raise SystemExit(f"Nie udało się pobrać tekstu aktu {ident} (PDF ani HTML).")
+        raise RuntimeError(f"Nie udało się pobrać tekstu aktu {ident} (PDF ani HTML).")
     wyj = os.path.join(katalog, nazwa + ".txt")
     with open(wyj, "w", encoding="utf-8") as f:
         f.write(tekst)
