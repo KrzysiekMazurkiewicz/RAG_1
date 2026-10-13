@@ -177,7 +177,9 @@ Zasady odpowiedzi:
    podmiotowy (kogo dotyczy) i zastrzeżenia („chyba że”, „z zastrzeżeniem”). Nie zamieniaj warunku alternatywnego na
    łączny ani odwrotnie; progi przypisuj do właściwej grupy osób i właściwego warunku. Nie streszczaj warunków
    słowami typu „określone warunki”: podaj je albo o nich nie wspominaj. Jeśli przepis ma warunki lub wyjątki istotne
-   dla pytania, wymień je.
+   dla pytania, wymień je. Gdy pytanie podaje wymiar okresów składkowych i nieskładkowych, zawsze sprawdź i zastosuj
+   ograniczenie okresów nieskładkowych do jednej trzeciej (1/3) udowodnionych okresów składkowych, jeśli wynika ono z
+   dostarczonych fragmentów (nigdy nie sumuj wprost okresów nieskładkowych ponad 1/3 okresów składkowych).
 7. Odpowiadaj z przepisu ogólnego (reguły), chyba że pytanie wprost dotyczy sytuacji szczególnej albo opisana
    sytuacja podpada pod przepis szczególny (konkretną grupę osób, wyjątek). Przepisy o ponownym ustaleniu lub
    przeliczeniu świadczenia oraz przepisy przejściowe cytuj jako podstawę tylko wtedy, gdy pytanie o nie pyta albo
@@ -263,7 +265,8 @@ Oceny:
 - "negacje_ok": czy zdanie zachowuje negacje i wyłączenia przepisu ("nie", "z wyjątkiem", "chyba że"). Brak negacji
   w przepisie i w zdaniu: true.
 - "liczby_przypisane_ok": czy każda liczba, wiek, okres, kwota i procent w zdaniu jest przypisana do właściwej grupy
-  osób i właściwego warunku, tak jak w przepisie. To, że liczba występuje gdzieś we fragmentach, nie wystarcza.
+  osób i właściwego warunku, tak jak w przepisie, a ewentualne obliczenie stażu (w tym limit 1/3 okresów nieskładkowych
+  w stosunku do składkowych) jest rachunkowo i prawnie poprawne. To, że liczba występuje gdzieś we fragmentach, nie wystarcza.
   Zdanie bez liczb: true.
 - "zakres_podmiotowy_ok": czy zdanie dotyczy tych samych osób i sytuacji co przepis (kto, w jakich okolicznościach);
   false, gdy rozszerza przepis na inną grupę albo zawęża go bez podstawy.
@@ -511,8 +514,89 @@ def _normalizuj_liczby(t: str) -> str:
     return t.lower()
 
 
-def korpus_liczb(jednostki: list[Jednostka]) -> str:
-    return _normalizuj_liczby("\n".join(f"{j.sciezka}\n{j.tekst}" for j in jednostki))
+def liczby_pochodne_z_pytania(pytanie: str) -> str:
+    """Wyciąga liczby całkowite n z pytania (1 <= n <= 100) i zwraca tekst z prostymi derywacjami
+    arytmetycznymi używanymi przy obliczaniu stażu i progu 1/3 okresów nieskładkowych:
+    n // 3 (limit 1/3 w latach), (n % 3) * 4 (pozostałe miesiące przy limicie 1/3, np. 14 lat -> 4 lata i 8 mies.),
+    a + b, |a - b|, a + (a // 3)."""
+    if not pytanie or not pytanie.strip():
+        return ""
+    liczby_pyt = [int(x) for x in re.findall(r"\b\d{1,3}\b", pytanie) if 1 <= int(x) <= 100]
+    pochodne: set[str] = set()
+    for a in liczby_pyt:
+        trzecia = a // 3
+        mies = (a % 3) * 4
+        pochodne.add(str(trzecia))
+        if mies:
+            pochodne.add(str(mies))
+        suma_z_limitem = a + trzecia
+        pochodne.add(str(suma_z_limitem))
+    for i, a in enumerate(liczby_pyt):
+        for b in liczby_pyt[i + 1:]:
+            pochodne.update({str(a + b), str(abs(a - b))})
+    return " ".join(sorted(pochodne))
+
+
+def korpus_liczb(jednostki: list[Jednostka], pytanie: str = "") -> str:
+    baza = "\n".join(f"{j.sciezka}\n{j.tekst}" for j in jednostki)
+    if pytanie.strip():
+        baza = baza + "\n" + pytanie
+        pochodne = liczby_pochodne_z_pytania(pytanie)
+        if pochodne:
+            baza = baza + "\n" + pochodne
+    return _normalizuj_liczby(baza)
+
+
+_RE_SUROWE_ID_NAWIAS = re.compile(
+    r"[\(\[]\s*[a-z0-9_]+:art(\d+[a-z]*)(?::ust(\d+[a-z]*))?(?:-[b-z])?(?:\s+((?:pkt|lit\.)\s*[^)\]]+))?\s*[\)\]]",
+    re.I,
+)
+_RE_SUROWE_ID_PROC_NAWIAS = re.compile(
+    r"[\(\[]\s*[a-z0-9_]+:s(\d+)(?::f(\d+))?\s*[\)\]]",
+    re.I,
+)
+_RE_SUROWE_ID_LUZNE = re.compile(
+    r"\b[a-z0-9_]+:art(\d+[a-z]*)(?::ust(\d+[a-z]*))?(?:-[b-z])?\b",
+    re.I,
+)
+_RE_SUROWE_ID_PROC_LUZNE = re.compile(
+    r"\b[a-z0-9_]+:s(\d+)(?::f(\d+))?\b",
+    re.I,
+)
+
+
+def wyczysc_id_w_tekscie(tekst: str) -> str:
+    """Zamienia surowe identyfikatory wewnętrzne w treści odpowiedzi (np. '[fus:art65:ust1]', '(zas:art7 pkt 1)',
+    'fus:art118:ust1', '[proc1:s2]') na czytelne oznaczenia przepisów ('(art. 65 ust. 1)', '(art. 7 pkt 1)',
+    'art. 118 ust. 1', '(sekcja 2)')."""
+    if not tekst:
+        return tekst
+
+    def _zamien_nawias(m: "re.Match") -> str:
+        art, ust, reszta = m.group(1), m.group(2), (m.group(3) or "").strip()
+        srodek = f"art. {art}" + (f" ust. {ust}" if ust else "") + (f" {reszta}" if reszta else "")
+        return f"({srodek})"
+
+    def _zamien_proc_nawias(m: "re.Match") -> str:
+        sek = m.group(1)
+        return f"(sekcja {sek})"
+
+    def _zamien_luzne(m: "re.Match") -> str:
+        art, ust = m.group(1), m.group(2)
+        return f"art. {art}" + (f" ust. {ust}" if ust else "")
+
+    def _zamien_proc_luzne(m: "re.Match") -> str:
+        sek = m.group(1)
+        return f"sekcja {sek}"
+
+    out = _RE_SUROWE_ID_NAWIAS.sub(_zamien_nawias, tekst)
+    out = _RE_SUROWE_ID_PROC_NAWIAS.sub(_zamien_proc_nawias, out)
+    out = _RE_SUROWE_ID_LUZNE.sub(_zamien_luzne, out)
+    out = _RE_SUROWE_ID_PROC_LUZNE.sub(_zamien_proc_luzne, out)
+    return out
+
+
+czysc_id_w_tekscie = wyczysc_id_w_tekscie
 
 
 def liczby_bez_pokrycia(zdanie: str, korpus_norm: str) -> list[str]:
@@ -721,9 +805,10 @@ def _z_rodzicami(indeks: Indeks, jednostki: list[Jednostka]) -> list[Jednostka]:
 
 # --- kontrola jednej wersji odpowiedzi: bramki deterministyczne + weryfikacja LLM ----------
 def _wynik_generatora(indeks: Indeks, g: dict, kontekst: list[Jednostka]) -> tuple[str, list[Jednostka], str]:
-    tekst = (g.get("odpowiedz") or "").strip()
+    surowy_tekst = (g.get("odpowiedz") or "").strip()
     surowe = g.get("cytowane_id") or []
-    cyt_id = odzyskaj_cytaty(tekst, surowe if isinstance(surowe, list) else [surowe], kontekst)
+    cyt_id = odzyskaj_cytaty(surowy_tekst, surowe if isinstance(surowe, list) else [surowe], kontekst)
+    tekst = wyczysc_id_w_tekscie(surowy_tekst)
     return tekst, [indeks.jednostki[c] for c in cyt_id], (g.get("uwagi") or "").strip()
 
 
@@ -749,7 +834,7 @@ def _kontrola(indeks: Indeks, pytanie: str, tekst: str, cytaty: list[Jednostka],
         else:
             zdania.append(z)
     if KONFIG.kontrola_liczb:
-        korpus = korpus_liczb(kontekst)
+        korpus = korpus_liczb(kontekst, pytanie)
         zostaja: list[str] = []
         for z in zdania:
             brak = liczby_bez_pokrycia(z, korpus)
@@ -901,7 +986,8 @@ def odpowiedz(indeks: Indeks, pytanie: str, na_dzien: Optional[str] = None,
               dopytuj: bool = True, weryfikacja: bool = True,
               top_n: Optional[int] = None, uzyj_llm: bool = True,
               analiza: Optional[bool] = None, naprawa: Optional[bool] = None,
-              data_wskazana: Optional[bool] = None) -> Odpowiedz:
+              data_wskazana: Optional[bool] = None,
+              akty: Optional[list[str]] = None) -> Odpowiedz:
     """Pełny przebieg. Bez skonfigurowanego LLM zwraca same trafienia (retrieval-only).
     `data_wskazana` – czy datę „na dzień” podał użytkownik (domyślnie: tak, gdy `na_dzien` jest ustawione); tylko wtedy
     odpowiedź dostaje ostrzeżenia o stanie prawnym. Pole `slad` wyniku ma komplet danych diagnostycznych (trace_id,
@@ -912,12 +998,12 @@ def odpowiedz(indeks: Indeks, pytanie: str, na_dzien: Optional[str] = None,
         data_wskazana = na_dzien is not None
     slad: dict = {"trace_id": uuid.uuid4().hex, "czas": datetime.now().isoformat(timespec="seconds"),
                   "pytanie": pytanie, "na_dzien": na_dzien, "data_wskazana": data_wskazana,
-                  "konfiguracja": konfiguracja_do_sladu()}
+                  "akty": akty, "konfiguracja": konfiguracja_do_sladu()}
     t0 = time.time()
     if not uzyj_llm or not llm_dostepny():
         traf = szukaj_pelnie(indeks, pytanie, na_dzien=na_dzien, uzyj_emb=uzyj_emb,
-                             uzyj_reranker=uzyj_reranker, top_n=top_n)
-        kontekst = rozszerz(indeks, traf, na_dzien=na_dzien)
+                             uzyj_reranker=uzyj_reranker, top_n=top_n, akty=akty)
+        kontekst = rozszerz(indeks, traf, na_dzien=na_dzien, pytanie=pytanie, akty=akty)
         czasy["szukanie"] = round(time.time() - t0, 1)
         slad.update(zapytania=[pytanie], trafienia=_slad_trafien(traf), kontekst=[j.id for j in kontekst],
                     wynik={"tryb": "retrieval-only", "czasy": czasy})
@@ -925,7 +1011,7 @@ def odpowiedz(indeks: Indeks, pytanie: str, na_dzien: Optional[str] = None,
     rozpocznij_slad()
     try:
         w = _odpowiedz_llm(indeks, pytanie, na_dzien, data_wskazana, uzyj_emb, uzyj_reranker, dopytuj, weryfikacja,
-                           top_n, analiza, naprawa, czasy, slad, t0)
+                           top_n, analiza, naprawa, czasy, slad, t0, akty=akty)
         slad["wynik"] = {"tryb": w.tryb, "status_weryfikacji": w.status_weryfikacji, "tekst": w.tekst, "uwagi": w.uwagi,
                          "cytaty": [j.id for j in w.cytaty], "zdania_usuniete": w.zdania_usuniete,
                          "ostrzezenia": w.ostrzezenia, "naprawa": w.naprawa, "dopytanie": w.dopytanie,
@@ -938,7 +1024,8 @@ def odpowiedz(indeks: Indeks, pytanie: str, na_dzien: Optional[str] = None,
 
 def _odpowiedz_llm(indeks: Indeks, pytanie: str, na_dzien: Optional[str], data_wskazana: bool, uzyj_emb: bool,
                    uzyj_reranker: bool, dopytuj: bool, weryfikacja: bool, top_n: Optional[int],
-                   analiza: Optional[bool], naprawa: Optional[bool], czasy: dict, slad: dict, t0: float) -> Odpowiedz:
+                   analiza: Optional[bool], naprawa: Optional[bool], czasy: dict, slad: dict, t0: float,
+                   akty: Optional[list[str]] = None) -> Odpowiedz:
     # krok 1 – analiza pytania i warianty (pomijalny: --bez-analizy / LEXRAG_SKIP_ANALYSIS=1).
     # Tryb przeglądowy włączają WYŁĄCZNIE hasło i jawna prośba o przegląd; brak danych wg analizy daje zwykłą odpowiedź
     # (warunkową) z pytaniem doprecyzowującym obok niej, a dane „do pełnej oceny” tylko jako uwaga.
@@ -966,8 +1053,8 @@ def _odpowiedz_llm(indeks: Indeks, pytanie: str, na_dzien: Optional[str], data_w
     # kroki 2–4 – wyszukiwanie i kontekst
     t1 = time.time()
     traf = szukaj_pelnie(indeks, pytanie, warianty, na_dzien=na_dzien,
-                         uzyj_emb=uzyj_emb, uzyj_reranker=uzyj_reranker, top_n=top_n)
-    kontekst = rozszerz(indeks, traf, na_dzien=na_dzien)
+                         uzyj_emb=uzyj_emb, uzyj_reranker=uzyj_reranker, top_n=top_n, akty=akty)
+    kontekst = rozszerz(indeks, traf, na_dzien=na_dzien, pytanie=pytanie, akty=akty)
     czasy["szukanie"] = round(time.time() - t1, 1)
     slad.update(zapytania=[pytanie] + warianty, trafienia=_slad_trafien(traf),
                 kontekst=[j.id for j in kontekst], przeglad=przeglad)

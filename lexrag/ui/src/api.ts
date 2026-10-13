@@ -45,10 +45,15 @@ export interface Jednostka {
   poziom: string
   sciezka: string
   tekst: string
+  opis?: string
   rodzic: string | null
   odwolania: string[]
+  odwolania_zewn?: string[]
+  terminy?: string[]
   obowiazuje_od: string | null
   obowiazuje_do: string | null
+  wersja?: string
+  szukalny?: boolean
 }
 
 export interface Trafienie {
@@ -80,6 +85,30 @@ export interface Odpowiedz {
   cytaty: Jednostka[]
   trafienia: Trafienie[]
   kontekst: string[]
+}
+
+export interface RekordHistorii {
+  id: string
+  czas: string
+  pytanie: string
+  na_dzien?: string
+  akty?: string[] | null
+  tryb: Odpowiedz['tryb']
+  tekst: string
+  cytowane: string[]
+  kontekst: string[]
+  model: string
+  przeglad?: boolean
+  czasy?: Record<string, number>
+  status_weryfikacji?: Odpowiedz['status_weryfikacji']
+  ostrzezenia?: string[]
+  naprawa?: boolean
+  uwagi?: string
+  zdania_usuniete?: string[]
+  warianty?: string[]
+  brakujace_parametry?: string[]
+  dopytanie?: string
+  slad_zapisany?: boolean
 }
 
 export interface Opinia {
@@ -117,14 +146,31 @@ async function sprawdz<T>(r: Response): Promise<T> {
 export const api = {
   stan: () => fetch('/api/stan').then((r) => sprawdz<Stan>(r)),
 
-  pytanie: (pytanie: string, na_dzien: string | null, analiza: boolean | null, slad: boolean | null = null) =>
+  pytanie: (
+    pytanie: string,
+    na_dzien: string | null,
+    analiza: boolean | null,
+    slad: boolean | null = null,
+    akty: string[] | null = null,
+  ) =>
     fetch('/api/pytanie', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pytanie, na_dzien, analiza, slad }),
+      body: JSON.stringify({ pytanie, na_dzien, analiza, slad, akty: akty && akty.length ? akty : null }),
     }).then((r) => sprawdz<Odpowiedz>(r)),
 
   jednostka: (id: string) => fetch(`/api/jednostka/${encodeURIComponent(id)}`).then((r) => sprawdz<Jednostka>(r)),
+
+  przepisy: (q = '', akt = '', limit = 50) => {
+    const params = new URLSearchParams()
+    if (q.trim()) params.set('q', q.trim())
+    if (akt.trim()) params.set('akt', akt.trim())
+    params.set('limit', String(limit))
+    return fetch(`/api/przepisy?${params.toString()}`).then((r) => sprawdz<Jednostka[]>(r))
+  },
+
+  historia: (limit = 25) =>
+    fetch(`/api/historia?limit=${limit}`).then((r) => sprawdz<RekordHistorii[]>(r)),
 
   wgraj: (dane: FormData) => fetch('/api/wgraj', { method: 'POST', body: dane }).then((r) => sprawdz<Zadanie>(r)),
 
@@ -147,7 +193,10 @@ export const api = {
 
   opinie: (status: string) => fetch(`/api/opinie?status=${status}`).then((r) => sprawdz<Opinia[]>(r)),
 
-  przeglad: (id: string, dane: { status: string; wlasciwy_przepis?: string[]; musi_zawierac: string[]; przegladajacy: string }) =>
+  przeglad: (
+    id: string,
+    dane: { status: string; wlasciwy_przepis?: string[]; musi_zawierac: string[]; przegladajacy: string },
+  ) =>
     fetch(`/api/opinie/${id}/przeglad`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

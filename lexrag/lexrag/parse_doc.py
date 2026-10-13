@@ -11,9 +11,43 @@ import re
 from typing import Optional
 
 from .models import Jednostka
+from .parse_ustawa import RE_REF, RE_REF_NUM
 
 RE_NAGLOWEK = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
 RE_NUMER_SEKCJI = re.compile(r"^(\d+(?:\.\d+)*)\.?\s+")
+RE_REF_PRZEPIS = re.compile(r"\bart\.\s*(\d+[a-z]*)(?:\s+ust\.\s*(\d+[a-z]*))?", re.I)
+RE_UST_REF = re.compile(r"^\s*ust\.\s*(\d+[a-z]*)", re.I)
+
+
+def _odwolania_z_procedury(tekst: str) -> tuple[list[str], list[str]]:
+    """Wyciąga odesłania do artykułów ustaw (np. 'art. 138 ust. 4', 'art. 138') z tekstu procedury.
+    Zwraca (odwolania, odwolania_zewn):
+      - odwolania: wzorce np. ['art138:ust4', 'art138'] (rozwiązywane w retrieve.rozszerz po sufiksie)
+      - odwolania_zewn: czytelne etykiety np. ['art. 138 ust. 4', 'art. 138']
+    """
+    odw: list[str] = []
+    zewn: list[str] = []
+    for m in RE_REF.finditer(tekst):
+        calosc = m.group(0)
+        po = tekst[m.end(): m.end() + 40]
+        mu = RE_UST_REF.match(po)
+        ust = mu.group(1).lower() if mu else None
+        for n in RE_REF_NUM.findall(calosc[4:]):
+            n_low = n.lower()
+            if ust:
+                u_ref = f"art{n_low}:ust{ust}"
+                u_opis = f"art. {n_low} ust. {ust}"
+                if u_ref not in odw:
+                    odw.append(u_ref)
+                if u_opis not in zewn:
+                    zewn.append(u_opis)
+            a_ref = f"art{n_low}"
+            a_opis = f"art. {n_low}"
+            if a_ref not in odw:
+                odw.append(a_ref)
+            if a_opis not in zewn:
+                zewn.append(a_opis)
+    return odw, zewn
 
 
 def _podziel_na_fragmenty(tekst: str, max_znakow: int) -> list[str]:
@@ -79,6 +113,7 @@ def parsuj_markdown(tekst: str, dokument: str, kod: str, max_znakow: int = 1800,
     zamknij()
 
     out: list[Jednostka] = []
+    sciezka_do_id: dict[tuple[str, ...], str] = {}
     for nr, (sciezka, tresc) in enumerate(sekcje, start=1):
         sekcja_tekst = "\n".join(tresc).strip()
         if sciezka and sciezka[0].lower().startswith(dokument.lower()[:20]):
@@ -86,19 +121,31 @@ def parsuj_markdown(tekst: str, dokument: str, kod: str, max_znakow: int = 1800,
         else:
             sciezka_txt = " > ".join([dokument] + sciezka) if sciezka else dokument
         id_sekcji = f"{kod}:s{nr}"
+        rodzic_sekcji: Optional[str] = None
+        for dl in range(len(sciezka) - 1, 0, -1):
+            if tuple(sciezka[:dl]) in sciezka_do_id:
+                rodzic_sekcji = sciezka_do_id[tuple(sciezka[:dl])]
+                break
+        if sciezka:
+            sciezka_do_id[tuple(sciezka)] = id_sekcji
+        odw, zewn = _odwolania_z_procedury(sekcja_tekst)
         fragmenty = _podziel_na_fragmenty(sekcja_tekst, max_znakow)
         opis_wersji = f"Wersja dokumentu: {wersja}." if wersja else ""
         if len(fragmenty) == 1:
             out.append(Jednostka(id=id_sekcji, akt=dokument, akt_kod=kod, poziom="sekcja",
                                  sciezka=sciezka_txt, tekst=sekcja_tekst, opis=opis_wersji,
+                                 rodzic=rodzic_sekcji, odwolania=odw, odwolania_zewn=zewn,
                                  wersja=wersja, obowiazuje_od=obowiazuje_od, obowiazuje_do=obowiazuje_do, szukalny=True))
             continue
         out.append(Jednostka(id=id_sekcji, akt=dokument, akt_kod=kod, poziom="sekcja",
-                             sciezka=sciezka_txt, tekst=sekcja_tekst,
+                             sciezka=sciezka_txt, tekst=sekcja_tekst, rodzic=rodzic_sekcji,
+                             odwolania=odw, odwolania_zewn=zewn,
                              wersja=wersja, obowiazuje_od=obowiazuje_od, obowiazuje_do=obowiazuje_do, szukalny=False))
         for i, fr in enumerate(fragmenty, start=1):
+            odw_fr, zewn_fr = _odwolania_z_procedury(fr)
             out.append(Jednostka(id=f"{id_sekcji}:f{i}", akt=dokument, akt_kod=kod, poziom="fragment",
                                  sciezka=f"{sciezka_txt} > fragment {i}/{len(fragmenty)}", tekst=fr,
                                  opis=opis_wersji, rodzic=id_sekcji,
+                                 odwolania=odw_fr or odw, odwolania_zewn=zewn_fr or zewn,
                                  wersja=wersja, obowiazuje_od=obowiazuje_od, obowiazuje_do=obowiazuje_do, szukalny=True))
     return out

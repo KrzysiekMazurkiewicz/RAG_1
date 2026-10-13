@@ -188,3 +188,29 @@ def test_konfiguracja_w_sladzie_bez_sekretow(monkeypatch):
     zrzut = json.dumps(config.konfiguracja_do_sladu(), ensure_ascii=False)
     assert "TAJNY-KLUCZ" not in zrzut and "haslo" not in zrzut and "uzytkownik" not in zrzut
     assert "serwer:11434" in zrzut
+
+
+def test_przepisy_historia_i_filtr_aktow(klient):
+    _wgraj_testowa(klient)
+    with open(os.path.join(DANE, "procedura_testowa.md"), "rb") as f:
+        r = klient.post("/api/wgraj", files={"plik": ("procedura.md", f, "text/markdown")},
+                        data={"kod": "pnps", "akt": "Procedura NPS", "typ": "dokument", "wersja": "3.2"})
+    assert r.status_code == 200
+    assert _czekaj(klient)["status"] == "gotowe"
+
+    # przeglądanie /api/przepisy
+    wszystkie = klient.get("/api/przepisy?limit=10").json()
+    assert len(wszystkie) > 0
+    tylko_pnps = klient.get("/api/przepisy?akt=pnps").json()
+    assert all(j["akt_kod"] == "pnps" for j in tylko_pnps)
+    szukane = klient.get("/api/przepisy?q=art.%2024").json()
+    assert any("art24" in j["id"] for j in szukane)
+
+    # filtrowanie po aktach w /api/pytanie
+    w_pnps = klient.post("/api/pytanie", json={"pytanie": "zwrot nienależnie pobranych", "akty": ["pnps"]}).json()
+    assert all(t["id"].startswith("pnps:") for t in w_pnps["trafienia"])
+
+    # historia zapytań /api/historia
+    hist = klient.get("/api/historia?limit=5").json()
+    assert len(hist) >= 1 and hist[0]["pytanie"] == "zwrot nienależnie pobranych"
+

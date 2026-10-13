@@ -23,14 +23,38 @@ STOPY = set(
     "tych tym u a w z ze o oraz który która które których którym".split()
 )
 
+# korekta najczęstszych błędów lematyzacji słownikowej na terminologii ubezpieczeń społecznych
+_KOREKTA_LEMATOW = {
+    "chorobowe": "chorobowy",
+    "nieskładków": "nieskładkowy",
+    "nieskładkowe": "nieskładkowy",
+    "potrącić": "potrącenie",
+    "potrącać": "potrącenie",
+    "przedawnić": "przedawnienie",
+    "przedawniać": "przedawnienie",
+    "zawiesić": "zawieszenie",
+    "zawieszać": "zawieszenie",
+    "zmniejszać": "zmniejszenie",
+    "zmniejszyć": "zmniejszenie",
+    "zwolnić": "zwolnienie",
+    "wypłata": "wypłacać",
+    "rościć": "roszczenie",
+    "nienależnia": "nienależny",
+    "nienależnie": "nienależny",
+    "badan": "badanie",
+    "mój": "mieć",
+    "warunki": "warunek",
+}
+
 
 def lematyzuj(slowo: str) -> str:
+    w = slowo
     if _LEM and slowo.isalpha():
         try:
-            return simplemma.lemmatize(slowo, lang="pl")
+            w = simplemma.lemmatize(slowo, lang="pl")
         except Exception:  # pragma: no cover
-            return slowo
-    return slowo
+            w = slowo
+    return _KOREKTA_LEMATOW.get(w, _KOREKTA_LEMATOW.get(slowo, w))
 
 
 def tokenizuj(tekst: str) -> list[str]:
@@ -44,3 +68,4 @@ def tokenizuj(tekst: str) -> list[str]:
 
 def lematyzacja_dostepna() -> bool:
     return _LEM
+

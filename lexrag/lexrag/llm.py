@@ -269,15 +269,18 @@ def wyciagnij_json(tekst: str) -> dict:
 def czat_json(wiadomosci: list[dict], model: Optional[str] = None, proby: int = 2,
               schema: Optional[dict] = None, **kw) -> dict:
     """Czat z wymuszonym JSON. Przy błędzie parsowania powtarza z dopiskiem (temperatura 0 bez
-    zmiany promptu dałaby tę samą odpowiedź)."""
+    zmiany promptu dałaby tę samą odpowiedź); gdy schemat spowodował pustą odpowiedź, próbuje bez schematu."""
     ostatni: Optional[Exception] = None
     wiad = list(wiadomosci)
+    uzyj_schematu = schema
     for proba in range(proby):
         try:
-            return wyciagnij_json(czat(wiad, json_mode=True, model=model, schema=schema, **kw))
+            surowy = czat(wiad, json_mode=True, model=model, schema=uzyj_schematu, **kw)
+            return wyciagnij_json(surowy)
         except ValueError as e:
             ostatni = e
             _do_sladu({"etykieta": kw.get("etykieta", ""), "proba": proba + 1, "blad_json": str(e)[:300]})
+            uzyj_schematu = None
             wiad = list(wiadomosci) + [{"role": "user", "content":
                                         "Poprzednia odpowiedź nie była poprawnym JSON. Zwróć WYŁĄCZNIE jeden "
                                         "obiekt JSON zgodny z podanym schematem, bez komentarzy."}]

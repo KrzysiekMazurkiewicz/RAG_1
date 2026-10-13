@@ -219,6 +219,7 @@ class Pytanie(BaseModel):
     na_dzien: Optional[str] = None
     analiza: Optional[bool] = None
     slad: Optional[bool] = None      # zapisz pełny ślad diagnostyczny tej jednej odpowiedzi (domyślnie: wg LEXRAG_TRACE)
+    akty: Optional[list[str]] = None # opcjonalny filtr po kodach aktów (np. ["fus", "pnps"])
 
 
 @app.get("/api/stan")
@@ -278,14 +279,15 @@ def pytanie(p: Pytanie) -> dict:
     # ostrzeżenia o stanie prawnym dostaje tylko ten, kto datę wskazał sam
     wskazana = (p.na_dzien or "").strip()
     na_dzien = wskazana or date.today().isoformat()
-    w = odpowiedz(idx, tresc, na_dzien=na_dzien, analiza=p.analiza, data_wskazana=bool(wskazana))
+    akty_filtr = [a.strip().lower() for a in (p.akty or []) if a and a.strip()] or None
+    w = odpowiedz(idx, tresc, na_dzien=na_dzien, analiza=p.analiza, data_wskazana=bool(wskazana), akty=akty_filtr)
     ident = w.slad.get("trace_id") or uuid.uuid4().hex
     slad_zapisany = bool(KONFIG.slad_wlaczony or p.slad)
     if slad_zapisany:
         _zapisz_slad(ident, w.slad)
     _dopisz("odpowiedzi.jsonl", {
         "id": ident, "czas": datetime.now().isoformat(timespec="seconds"), "pytanie": _maskuj(tresc),
-        "na_dzien": na_dzien, "tryb": w.tryb, "tekst": w.tekst, "cytowane": [j.id for j in w.cytaty],
+        "na_dzien": na_dzien, "akty": akty_filtr, "tryb": w.tryb, "tekst": w.tekst, "cytowane": [j.id for j in w.cytaty],
         "kontekst": [j.id for j in w.kontekst], "model": KONFIG.llm_model, "indeks": KATALOG_INDEKSU,
         "przeglad": w.przeglad, "czasy": w.czasy, "status_weryfikacji": w.status_weryfikacji,
         "ostrzezenia": [o["kod"] for o in w.ostrzezenia], "naprawa": w.naprawa, "uwagi": w.uwagi,
@@ -346,7 +348,76 @@ def jednostka(ident: str) -> dict:
     idx = STAN.indeks
     if idx is None or ident not in idx.jednostki:
         raise HTTPException(404, "Nie ma takiej jednostki.")
-    return _jednostka_json(idx.jednostki[ident])
+    return asdict(idx.jednostki[ident])
+
+
+@app.get("/api/przepisy")
+@app.get("/api/szukaj")
+def przepisy(q: str = "", akt: str = "", limit: int = 50) -> list[dict]:
+    """Błyskawiczne przeglądanie i wyszukiwanie jednostek w indeksie (dla zakładki 'Baza przepisów i procedur')."""
+    idx = STAN.indeks
+    if idx is None:
+        return []
+    limit = max(1, min(limit, 200))
+    akt_kod = akt.strip().lower()
+    akty_lista = [akt_kod] if akt_kod else None
+    zap = q.strip()
+    wynik_ids: list[str] = []
+    widziane: set[str] = set()
+
+    if zap:
+        # 1. Dokładne lub prefiksowe dopasowanie po ID albo ścieżce (np. "art. 24", "fus:art24")
+        zap_low = zap.lower()
+        for uid, j in idx.jednostki.items():
+            if akt_kod and j.akt_kod.lower() != akt_kod:
+                continue
+            if zap_low == uid.lower() or zap_low in uid.lower() or zap_low in j.sciezka.lower():
+                if j.szukalny and uid not in widziane:
+                    widziane.add(uid)
+                    wynik_ids.append(uid)
+                    if len(wynik_ids) >= limit:
+                        break
+        # 2. Wyszukiwanie BM25 w indeksie
+        if len(wynik_ids) < limit:
+            from .retrieve import szukaj as _szukaj_bm25
+            traf = _szukaj_bm25(idx, [zap], k_kazde=limit, uzyj_emb=False, akty=akty_lista)
+            for t in traf:
+                if t.id not in widziane and t.id in idx.jednostki:
+                    widziane.add(t.id)
+                    wynik_ids.append(t.id)
+                    if len(wynik_ids) >= limit:
+                        break
+        # 3. Dopasowanie podciągu w treści lub opisie
+        if len(wynik_ids) < limit:
+            for uid in idx.szukalne:
+                if uid in widziane:
+                    continue
+                j = idx.jednostki[uid]
+                if akt_kod and j.akt_kod.lower() != akt_kod:
+                    continue
+                if zap_low in j.tekst.lower() or (j.opis and zap_low in j.opis.lower()):
+                    widziane.add(uid)
+                    wynik_ids.append(uid)
+                    if len(wynik_ids) >= limit:
+                        break
+    else:
+        for uid in idx.szukalne:
+            j = idx.jednostki[uid]
+            if akt_kod and j.akt_kod.lower() != akt_kod:
+                continue
+            wynik_ids.append(uid)
+            if len(wynik_ids) >= limit:
+                break
+
+    return [asdict(idx.jednostki[uid]) for uid in wynik_ids[:limit] if uid in idx.jednostki]
+
+
+@app.get("/api/historia")
+def historia(limit: int = 30) -> list[dict]:
+    """Ostatnie odpowiedzi z dziennika odpowiedzi.jsonl (od najnowszych)."""
+    limit = max(1, min(limit, 100))
+    wpisy = _wczytaj("odpowiedzi.jsonl")
+    return list(reversed(wpisy[-limit:]))
 
 
 @app.post("/api/wgraj")

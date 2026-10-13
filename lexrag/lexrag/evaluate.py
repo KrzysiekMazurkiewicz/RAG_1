@@ -78,7 +78,7 @@ def ewaluuj(indeks: Indeks, zloty: list[dict], uzyj_emb: bool = True, uzyj_reran
         else:
             ids = [t.id for t in kandydaci]
             do_kontekstu = kandydaci[:8]
-        kontekst = rozszerz(indeks, do_kontekstu, na_dzien=na_dzien)
+        kontekst = rozszerz(indeks, do_kontekstu, na_dzien=na_dzien, pytanie=pytanie)
         wyniki.append(WynikPytania(pytanie, list(w["oczekiwane"]), ids[: max(k_lista) * 2],
                                    [j.id for j in kontekst]))
 

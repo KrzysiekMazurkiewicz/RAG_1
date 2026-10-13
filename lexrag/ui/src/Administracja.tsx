@@ -1,10 +1,16 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, type Stan } from './api'
 
+const PRESETY_MODELI = [
+  { etykieta: 'Lokalna Ollama: Gemma 4 12B (Rekomendowany 100%)', baza: 'http://localhost:11434/v1', model: 'gemma4:12b', api: 'ollama' },
+  { etykieta: 'Lokalna Ollama: Gemma 4 E4B (Laptop 16 GB / 6 GB VRAM)', baza: 'http://localhost:11434/v1', model: 'gemma4:e4b', api: 'ollama' },
+  { etykieta: 'Lokalna Ollama: Qwen3 8B', baza: 'http://localhost:11434/v1', model: 'qwen3:8b', api: 'ollama' },
+]
+
 export default function Administracja({ stan, odswiez }: { stan: Stan | null; odswiez: () => Promise<void> }) {
   const [komunikat, setKomunikat] = useState('')
   const [wysylam, setWysylam] = useState(false)
-  const [zOpisami, setZOpisami] = useState(true)
+  const [zOpisami, setZOpisami] = useState(false)
   const [adres, setAdres] = useState('')
   const [model, setModel] = useState('')
   const [api2, setApi2] = useState('auto')
@@ -32,6 +38,7 @@ export default function Administracja({ stan, odswiez }: { stan: Stan | null; od
       setZapisuje(false)
     }
   }
+
   const wToku = stan?.zadanie.status === 'w toku'
   const jestModel = stan?.llm.dostepny ?? false
 
@@ -48,7 +55,9 @@ export default function Administracja({ stan, odswiez }: { stan: Stan | null; od
     setKomunikat('')
     try {
       await api.wgraj(dane)
-      setKomunikat('Przyjęto: parsowanie i budowa indeksu trwają (embeddingi na karcie: minuta, na CPU: kilkanaście minut).')
+      setKomunikat(
+        'Przyjęto plik: parsowanie jednostek i budowa wspólnego indeksu trwają w tle (postęp widoczny na pasku zadań).',
+      )
       await odswiez()
     } catch (err) {
       setKomunikat(`Błąd: ${(err as Error).message}`)
@@ -61,7 +70,9 @@ export default function Administracja({ stan, odswiez }: { stan: Stan | null; od
     setKomunikat('')
     try {
       await api.opisz(kod)
-      setKomunikat(`Model pisze opisy kontekstowe dla aktu ${kod}; postęp w polu „zadanie”. Po zakończeniu indeks przebuduje się sam.`)
+      setKomunikat(
+        `Model generuje opisy kontekstowe dla aktu ${kod}; postęp widoczny w polu „Zadanie”. Po zakończeniu indeks przebuduje się automatycznie.`,
+      )
       await odswiez()
     } catch (err) {
       setKomunikat(`Błąd: ${(err as Error).message}`)
@@ -70,151 +81,194 @@ export default function Administracja({ stan, odswiez }: { stan: Stan | null; od
 
   return (
     <section>
-      <div className="karta">
-        <h3>Stan silnika</h3>
-        {stan ? (
-          <table className="tabela">
-            <tbody>
-              <tr>
-                <th>wersja</th>
-                <td>{stan.wersja}</td>
-              </tr>
-              <tr>
-                <th>model</th>
-                <td>
-                  {stan.llm.model || '(brak: tryb retrieval-only)'} · {stan.llm.baza} ·{' '}
-                  <span className={stan.llm.polaczenie?.ok ? 'ok' : 'blad'}>
-                    {stan.llm.polaczenie?.ok ? 'odpowiada' : `nie odpowiada: ${stan.llm.polaczenie?.komunikat ?? ''}`}
-                  </span>
-                </td>
-              </tr>
-              <tr>
-                <th>indeks</th>
-                <td>
-                  {stan.indeks.jednostek} jednostek, {stan.indeks.szukalnych} szukalnych, embeddingi:{' '}
-                  {stan.indeks.embeddingi ? 'tak' : 'nie'} · {stan.indeks.katalog}
-                </td>
-              </tr>
-              <tr>
-                <th>zadanie</th>
-                <td>
-                  {stan.zadanie.status}
-                  {stan.zadanie.komunikat ? ` · ${stan.zadanie.komunikat}` : ''}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        ) : (
-          <p className="cichy">łączę…</p>
-        )}
-        {komunikat && <p className={komunikat.startsWith('Błąd') ? 'blad' : 'ok'}>{komunikat}</p>}
+      <div className="siatka-kart">
+        <div className="karta">
+          <h3>Stan silnika i indeksu</h3>
+          {stan ? (
+            <table className="tabela">
+              <tbody>
+                <tr>
+                  <th>Wersja silnika</th>
+                  <td>{stan.wersja}</td>
+                </tr>
+                <tr>
+                  <th>Serwer modelu LLM</th>
+                  <td>
+                    <strong>{stan.llm.model || '(brak: tryb retrieval-only)'}</strong> · <code>{stan.llm.baza}</code>
+                    <br />
+                    <span className={stan.llm.polaczenie?.ok ? 'ok' : 'blad'}>
+                      {stan.llm.polaczenie?.ok
+                        ? `✓ Połączono (${stan.llm.polaczenie.komunikat})`
+                        : `✕ Brak połączenia: ${stan.llm.polaczenie?.komunikat ?? ''}`}
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <th>Wspólny indeks</th>
+                  <td>
+                    <strong>{stan.indeks.szukalnych}</strong> jednostek szukalnych ({stan.indeks.jednostek} łącznie z
+                    artykułami nadrzędnymi) · Embeddingi wektorowe: <strong>{stan.indeks.embeddingi ? 'TAK' : 'NIE'}</strong>
+                  </td>
+                </tr>
+                <tr>
+                  <th>Zadanie w tle</th>
+                  <td>
+                    <span className={`znacznik ${stan.zadanie.status === 'blad' ? 'blad' : 'odpowiedz'}`}>
+                      {stan.zadanie.status}
+                    </span>
+                    {stan.zadanie.komunikat ? ` · ${stan.zadanie.komunikat}` : ''}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          ) : (
+            <p className="cichy">Łączenie z silnikiem…</p>
+          )}
+          {komunikat && <p className={komunikat.startsWith('Błąd') ? 'blad' : 'ok'}>{komunikat}</p>}
+        </div>
+
+        <form className="karta formularz" onSubmit={zapiszModel}>
+          <h3>Konfiguracja serwera modelu (Ollama / vLLM / Tunel Colab)</h3>
+          <div className="szybkie-skroty">
+            <span className="cichy">Szybkie presety:</span>
+            {PRESETY_MODELI.map((p, idx) => (
+              <button
+                key={idx}
+                type="button"
+                className="chip maly"
+                onClick={() => {
+                  setAdres(p.baza)
+                  setModel(p.model)
+                  setApi2(p.api)
+                }}
+              >
+                {p.etykieta}
+              </button>
+            ))}
+          </div>
+          <div className="wiersz">
+            <label className="pole">
+              <span>Adres serwera (Ollama: http://localhost:11434/v1; Colab: https://….trycloudflare.com/v1)</span>
+              <input value={adres} onChange={(e) => setAdres(e.target.value)} placeholder="http://localhost:11434/v1" />
+            </label>
+            <label className="pole male">
+              <span>Nazwa modelu</span>
+              <input value={model} onChange={(e) => setModel(e.target.value)} placeholder="gemma4:12b" />
+            </label>
+            <label className="pole male">
+              <span>Tryb API</span>
+              <select value={api2} onChange={(e) => setApi2(e.target.value)}>
+                <option value="auto">auto</option>
+                <option value="ollama">ollama (natywne)</option>
+                <option value="openai">openai (vLLM, llama.cpp)</option>
+              </select>
+            </label>
+            <button type="submit" className="glowny" disabled={zapisuje || !adres.trim() || !model.trim()}>
+              {zapisuje ? 'Sprawdzam…' : 'Zapisz i przetestuj'}
+            </button>
+          </div>
+          {wynikModelu && <p className={wynikModelu.startsWith('Błąd') ? 'blad' : 'ok'}>{wynikModelu}</p>}
+          <p className="cichy">
+            Zmiana działa natychmiast bez restartu serwera i zapisuje się w <code>data/model.json</code>. Jeśli używasz
+            notatnika <code>colab/lexrag_serwer_modelu.ipynb</code>, wklej tutaj wygenerowany link{' '}
+            <code>https://....trycloudflare.com/v1</code>.
+          </p>
+        </form>
       </div>
 
-      <form className="karta formularz" onSubmit={zapiszModel}>
-        <h3>Serwer modelu</h3>
-        <div className="wiersz">
-          <label className="pole">
-            <span>Adres serwera (Ollama: …:11434/v1; tunel z Colaba: https://…trycloudflare.com/v1)</span>
-            <input value={adres} onChange={(e) => setAdres(e.target.value)} placeholder="http://localhost:11434/v1" />
-          </label>
-          <label className="pole male">
-            <span>Model</span>
-            <input value={model} onChange={(e) => setModel(e.target.value)} placeholder="gemma4:12b" />
-          </label>
-          <label className="pole male">
-            <span>API</span>
-            <select value={api2} onChange={(e) => setApi2(e.target.value)}>
-              <option value="auto">auto</option>
-              <option value="ollama">ollama</option>
-              <option value="openai">openai (vLLM, llama.cpp)</option>
-            </select>
-          </label>
-          <button type="submit" className="glowny" disabled={zapisuje || !adres.trim() || !model.trim()}>
-            {zapisuje ? 'sprawdzam…' : 'Zapisz i sprawdź'}
-          </button>
-        </div>
-        {wynikModelu && <p className={wynikModelu.startsWith('Błąd') ? 'blad' : 'ok'}>{wynikModelu}</p>}
-        <p className="cichy">
-          Zmiana działa od razu, bez restartu, i jest zapamiętana w data/model.json (nadpisuje zmienne środowiskowe).
-          Tunel z Colaba ma inny adres w każdej sesji: wklej nowy adres z komórki „tunel” i zapisz.
-        </p>
-      </form>
-
       <div className="karta">
-        <h3>Wgrane akty i dokumenty</h3>
+        <h3>Wgrane ustawy, rozporządzenia i procedury wewnętrzne ZUS</h3>
         {stan && stan.indeks.akty.length > 0 ? (
           <table className="tabela">
             <thead>
               <tr>
-                <th>kod</th>
-                <th>nazwa</th>
-                <th>wersja</th>
-                <th>przepisów</th>
-                <th>opisy kontekstowe</th>
-                <th>obowiązuje od</th>
-                <th>obowiązuje do</th>
-                <th></th>
+                <th>Kod</th>
+                <th>Pełna nazwa aktu / procedury</th>
+                <th>Wersja / Dz.U.</th>
+                <th>Jednostek szukalnych</th>
+                <th>Opisy kontekstowe</th>
+                <th>Obowiązuje od</th>
+                <th>Obowiązuje do</th>
+                <th>Akcje</th>
               </tr>
             </thead>
             <tbody>
-              {stan.indeks.akty.map((a) => (
-                <tr key={a.kod}>
-                  <td className="id">{a.kod}</td>
-                  <td>{a.akt}</td>
-                  <td>{a.wersja || '—'}</td>
-                  <td>{a.szukalnych}</td>
-                  <td>
-                    {a.opisy} / {a.szukalnych}
-                  </td>
-                  <td>{a.obowiazuje_od ?? '—'}</td>
-                  <td>{a.obowiazuje_do ?? 'nadal'}</td>
-                  <td>
-                    {a.opisy < a.szukalnych && (
-                      <button
-                        onClick={() => void opisz(a.kod)}
-                        disabled={wToku || !jestModel}
-                        title={jestModel ? 'model dopisze jedno zdanie opisu do każdego przepisu bez opisu (ok. 4 s na przepis na karcie)' : 'wymaga działającego modelu'}
-                      >
-                        Opisz przepisy
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {stan.indeks.akty.map((a) => {
+                const proc = a.szukalnych > 0 ? Math.round((a.opisy / a.szukalnych) * 100) : 0
+                return (
+                  <tr key={a.kod}>
+                    <td>
+                      <span className="id">{a.kod}</span>
+                    </td>
+                    <td>
+                      <strong>{a.akt}</strong>
+                    </td>
+                    <td>{a.wersja || '—'}</td>
+                    <td>{a.szukalnych}</td>
+                    <td>
+                      <div className="postep-opisow">
+                        <span>
+                          {a.opisy} / {a.szukalnych} ({proc}%)
+                        </span>
+                        <div className="pasek-postepu">
+                          <div className="pasek-postepu-wypelnienie" style={{ width: `${proc}%` }} />
+                        </div>
+                      </div>
+                    </td>
+                    <td>{a.obowiazuje_od ?? '—'}</td>
+                    <td>{a.obowiazuje_do ?? 'nadal'}</td>
+                    <td>
+                      {a.opisy < a.szukalnych && (
+                        <button
+                          type="button"
+                          className="maly-przycisk"
+                          onClick={() => void opisz(a.kod)}
+                          disabled={wToku || !jestModel}
+                          title={
+                            jestModel
+                              ? 'Model dopisze jedno zdanie potocznego opisu do każdego przepisu bez opisu'
+                              : 'Wymaga połączonego modelu LLM'
+                          }
+                        >
+                          Generuj opisy
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         ) : (
-          <p className="cichy">Nic jeszcze nie wgrano.</p>
+          <p className="cichy">Brak wgranych aktów w indeksie.</p>
         )}
-        <p className="cichy">
-          Opisy kontekstowe to jedno zdanie na przepis, pisane przez model słowami pracownika („kiedy można…”, „ile
-          wynosi…”). Trafiają do wyszukiwania, nie do odpowiedzi; poprawiają trafność dla pytań hasłowych. Czas: około 4 s
-          na przepis przy modelu na karcie.
-        </p>
       </div>
 
       <form className="karta formularz" onSubmit={wyslij}>
-        <h3>Wgraj akt albo dokument</h3>
+        <h3>Wgraj nową ustawę (PDF z ISAP) lub wewnętrzną procedurę ZUS (DOCX / Markdown / PDF)</h3>
         <div className="wiersz">
           <label className="pole">
-            <span>Plik (PDF, TXT, HTML, DOCX, MD)</span>
+            <span>Plik źródłowy (PDF, DOCX, MD, TXT, HTML)</span>
             <input type="file" name="plik" required accept=".pdf,.txt,.html,.htm,.docx,.md" />
           </label>
           <label className="pole male">
-            <span>Kod (np. zas_2026)</span>
+            <span>Krótki kod identyfikujący (np. fus, zas, proc_nps)</span>
             <input name="kod" required pattern="[a-z0-9_]{1,24}" placeholder="małe litery, cyfry, _" />
           </label>
           <label className="pole male">
-            <span>Typ</span>
+            <span>Rodzaj dokumentu</span>
             <select name="typ" defaultValue="ustawa">
-              <option value="ustawa">ustawa</option>
-              <option value="dokument">dokument wewnętrzny</option>
+              <option value="ustawa">Ustawa / rozporządzenie (Art., §)</option>
+              <option value="dokument">Procedura wewnętrzna / instrukcja ZUS (nagłówki)</option>
             </select>
           </label>
         </div>
         <label className="pole">
-          <span>Pełna nazwa aktu</span>
-          <input name="akt" placeholder="Ustawa o świadczeniach pieniężnych z ubezpieczenia społecznego w razie choroby i macierzyństwa" />
+          <span>Pełna nazwa aktu prawnego lub procedury wewnętrznej</span>
+          <input
+            name="akt"
+            placeholder="np. Ustawa o emeryturach i rentach z FUS / Procedura P-NPS rozliczania nienależnie pobranych świadczeń"
+          />
         </label>
         <div className="wiersz">
           <label className="pole male">
@@ -226,12 +280,12 @@ export default function Administracja({ stan, odswiez }: { stan: Stan | null; od
             <input type="date" name="obowiazuje_do" />
           </label>
           <label className="pole male">
-            <span>Wersja (etykieta)</span>
-            <input name="wersja" placeholder="tj. Dz.U. 2026 poz. 854" />
+            <span>Oznaczenie wersji / Dz.U.</span>
+            <input name="wersja" placeholder="np. tj. Dz.U. 2024 poz. 1631 / wer. 3.2" />
           </label>
         </div>
-        <div className="wiersz">
-          <label className="pole-wiersz" title={jestModel ? '' : 'wymaga działającego modelu'}>
+        <div className="wiersz-miedzy">
+          <label className="pole-wiersz" title={jestModel ? '' : 'Wymaga działającego modelu LLM'}>
             <input
               type="checkbox"
               name="opisy"
@@ -240,15 +294,16 @@ export default function Administracja({ stan, odswiez }: { stan: Stan | null; od
               checked={zOpisami && jestModel}
               onChange={(e) => setZOpisami(e.target.checked)}
             />
-            po wgraniu model dopisze opisy kontekstowe do przepisów (ok. 4 s na przepis; dla ustawy 100 artykułów około 20 minut)
+            Generuj od razu opisy kontekstowe przez LLM (ok. 4 s na przepis; można też włączyć później przyciskiem
+            „Generuj opisy”)
           </label>
-          <button type="submit" className="glowny" disabled={wysylam || wToku}>
-            {wToku ? 'trwa zadanie…' : wysylam ? 'wysyłam…' : 'Wgraj'}
+          <button type="submit" className="glowny duzy" disabled={wysylam || wToku}>
+            {wToku ? 'Trwa zadanie w tle…' : wysylam ? 'Wysyłanie…' : 'Wgraj i przebuduj wspólny indeks'}
           </button>
         </div>
         <p className="cichy">
-          Nowa wersja tego samego aktu dostaje nowy kod (np. zas_2027), a stara datę „obowiązuje do”. Po wgraniu
-          sprawdź raport w polu „zadanie” i otwórz kilka przepisów, zanim udostępnisz akt użytkownikom.
+          <strong>Wskazówka:</strong> Procedury wewnętrzne ZUS automatycznie wykrywają powołane w tekście artykuły ustaw
+          (np. <code>art. 138 ust. 4</code>) i łączą się z nimi podczas wyszukiwania odpowiedzi.
         </p>
       </form>
     </section>
